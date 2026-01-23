@@ -388,6 +388,11 @@ ai:
 # ===============================================================
 ai_analysis:
   enabled: true                     # 是否启用 AI 分析
+  
+  # 分析模式
+  # - general: 通用新闻分析（趋势洞察、情感分析、风险预警）
+  # - geo: GEO 借势营销分析（实体识别、营销价值评分、竞品分析）
+  mode: "general"                   # 可选: general | geo
 
   # 分析报告输出语言
   # 格式：自然语言描述
@@ -395,6 +400,8 @@ ai_analysis:
   language: "Chinese"
 
   # 提示词配置文件路径（相对于 config 目录）
+  # 通用模式: ai_analysis_prompt.txt
+  # GEO 模式: ai_geo_prompt.txt
   prompt_file: "ai_analysis_prompt.txt"
 
   # 分析内容配置
@@ -417,6 +424,13 @@ ai_analysis:
                                     # false: 使用简化格式（排名范围+时间范围+出现次数）
                                     # true: 传递完整排名变化轨迹（如 1(09:30)→2(10:00)→0(11:00)）
                                     # 启用后 AI 能更精确分析热度趋势，但会额外增加 token 消耗（0.5 倍到 1 倍）
+
+  # GEO 分析专用配置（仅在 mode: "geo" 时生效）
+  geo:
+    max_entities: 5                 # 最多识别的实体数量
+    min_marketing_score: 60         # 最低营销价值分（低于此分的实体不推荐）
+    brands_filter: []               # 品牌过滤列表（留空表示不过滤）
+                                    # 示例: ["小米", "华为", "苹果"]
 
 
 # ===============================================================

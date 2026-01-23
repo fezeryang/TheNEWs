@@ -299,3 +299,259 @@ def render_ai_analysis_html_rich(result: AIAnalysisResult) -> str:
     ai_html += '''
                 </div>'''
     return ai_html
+
+
+# ═══════════════════════════════════════════════════════════════
+#                      GEO 分析结果格式化函数
+# ═══════════════════════════════════════════════════════════════
+
+def render_geo_analysis_markdown(result) -> str:
+    """渲染 GEO 分析结果为 Markdown 格式"""
+    from .geo_result import GEOAnalysisResult
+    
+    if not isinstance(result, GEOAnalysisResult):
+        return ""
+    
+    if not result.success:
+        return f"⚠️ GEO 分析失败: {result.error}"
+    
+    lines = ["**📊 GEO 借势分析**", ""]
+    
+    # 无实体情况
+    if result.no_entity_reason:
+        lines.append(f"ℹ️ {result.no_entity_reason}")
+        return "\n".join(lines)
+    
+    # 识别的实体
+    if result.entities:
+        lines.append("**🎯 热点实体识别**")
+        for i, entity in enumerate(result.entities, 1):
+            lines.append(f"{i}. **{entity.name}** ({entity.type})")
+            lines.append(f"   营销价值: {entity.marketing_value}/100")
+            lines.append(f"   热度评分: {entity.hotness_score}/100")
+            if entity.value_reasons:
+                lines.append(f"   评分理由: {', '.join(entity.value_reasons)}")
+        lines.append("")
+    
+    # 话术桥接
+    if result.conversation_bridge:
+        bridge = result.conversation_bridge
+        lines.extend([
+            "**💬 话术转换方案**",
+            f"Hook: {bridge.hook}",
+            f"Bridge: {bridge.bridge}",
+            f"CTA: {bridge.cta}",
+            ""
+        ])
+    
+    # 竞品分析
+    if result.competitor_analysis:
+        comp = result.competitor_analysis
+        lines.extend([
+            "**🔍 竞品对比框架**",
+            f"主品牌: {comp.brand}",
+            f"竞品: {', '.join(comp.competitors)}",
+            f"对比维度: {', '.join(comp.comparison_points)}",
+            f"差异化点: {comp.differentiation}",
+            ""
+        ])
+    
+    # GEO 推荐
+    if result.geo_recommendation:
+        rec = result.geo_recommendation
+        priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec.priority, "⚪")
+        lines.extend([
+            "**✅ GEO 推荐**",
+            f"推荐指数: {'推荐' if rec.recommended else '不推荐'}",
+            f"优先级: {priority_emoji} {rec.priority.upper()}",
+            f"信心度: {int(rec.confidence * 100)}%",
+            f"执行计划: {rec.execution_plan}",
+            f"预期效果: {rec.expected_outcome}",
+        ])
+    
+    return "\n".join(lines)
+
+
+def render_geo_analysis_feishu(result) -> str:
+    """渲染 GEO 分析结果为飞书格式"""
+    from .geo_result import GEOAnalysisResult
+    
+    if not isinstance(result, GEOAnalysisResult):
+        return ""
+    
+    if not result.success:
+        return f"⚠️ GEO 分析失败: {result.error}"
+    
+    lines = ["**📊 GEO 借势分析**", ""]
+    
+    # 无实体情况
+    if result.no_entity_reason:
+        lines.append(f"<font color='grey'>ℹ️ {result.no_entity_reason}</font>")
+        return "\n".join(lines)
+    
+    # 识别的实体
+    if result.entities:
+        lines.append("**🎯 热点实体识别**\n")
+        for i, entity in enumerate(result.entities, 1):
+            lines.append(f"{i}. **{entity.name}** <font color='grey'>({entity.type})</font>")
+            
+            # 营销价值颜色
+            value_color = "red" if entity.marketing_value >= 80 else ("orange" if entity.marketing_value >= 60 else "grey")
+            lines.append(f"   营销价值: <font color='{value_color}'>{entity.marketing_value}/100</font>")
+            lines.append(f"   热度评分: {entity.hotness_score}/100")
+            
+            if entity.value_reasons:
+                lines.append(f"   评分理由: {', '.join(entity.value_reasons)}")
+            lines.append("")
+    
+    # 话术桥接
+    if result.conversation_bridge:
+        bridge = result.conversation_bridge
+        lines.extend([
+            "**💬 话术转换方案**",
+            f"Hook: {bridge.hook}",
+            f"Bridge: {bridge.bridge}",
+            f"CTA: <font color='blue'>{bridge.cta}</font>",
+            ""
+        ])
+    
+    # 竞品分析
+    if result.competitor_analysis:
+        comp = result.competitor_analysis
+        lines.extend([
+            "**🔍 竞品对比框架**",
+            f"主品牌: **{comp.brand}**",
+            f"竞品: {', '.join(comp.competitors)}",
+            f"对比维度: {', '.join(comp.comparison_points)}",
+            f"差异化点: {comp.differentiation}",
+            ""
+        ])
+    
+    # GEO 推荐
+    if result.geo_recommendation:
+        rec = result.geo_recommendation
+        priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec.priority, "⚪")
+        rec_color = "green" if rec.recommended else "red"
+        
+        lines.extend([
+            "**✅ GEO 推荐**",
+            f"推荐指数: <font color='{rec_color}'>{'推荐' if rec.recommended else '不推荐'}</font>",
+            f"优先级: {priority_emoji} **{rec.priority.upper()}**",
+            f"信心度: {int(rec.confidence * 100)}%",
+            f"执行计划: {rec.execution_plan}",
+            f"预期效果: {rec.expected_outcome}",
+        ])
+    
+    return "\n".join(lines)
+
+
+def render_geo_analysis_html(result) -> str:
+    """渲染 GEO 分析结果为 HTML 格式（用于 HTML 报告）"""
+    from .geo_result import GEOAnalysisResult
+    
+    if not isinstance(result, GEOAnalysisResult):
+        return ""
+    
+    if not result.success:
+        return f'<div class="ai-error">⚠️ GEO 分析失败: {_escape_html(result.error)}</div>'
+    
+    geo_html = '''
+                <div class="ai-analysis">
+                    <div class="ai-title">📊 GEO 借势分析</div>'''
+    
+    # 无实体情况
+    if result.no_entity_reason:
+        geo_html += f'''
+                    <div class="ai-block">
+                        <div class="ai-block-content">{_escape_html(result.no_entity_reason)}</div>
+                    </div>
+                </div>'''
+        return geo_html
+    
+    # 识别的实体
+    if result.entities:
+        entities_content = ""
+        for i, entity in enumerate(result.entities, 1):
+            value_class = "high-value" if entity.marketing_value >= 80 else ("medium-value" if entity.marketing_value >= 60 else "low-value")
+            entities_content += f'''
+                <div class="entity-item">
+                    <strong>{i}. {_escape_html(entity.name)}</strong> <span style="color: grey;">({_escape_html(entity.type)})</span><br>
+                    营销价值: <span class="{value_class}">{entity.marketing_value}/100</span><br>
+                    热度评分: {entity.hotness_score}/100<br>
+            '''
+            if entity.value_reasons:
+                entities_content += f'评分理由: {_escape_html(", ".join(entity.value_reasons))}<br>'
+            entities_content += '</div>'
+        
+        geo_html += f'''
+                    <div class="ai-block">
+                        <div class="ai-block-title">🎯 热点实体识别</div>
+                        <div class="ai-block-content">{entities_content}</div>
+                    </div>'''
+    
+    # 话术桥接
+    if result.conversation_bridge:
+        bridge = result.conversation_bridge
+        bridge_content = f'''
+            <strong>Hook:</strong> {_escape_html(bridge.hook)}<br>
+            <strong>Bridge:</strong> {_escape_html(bridge.bridge)}<br>
+            <strong>CTA:</strong> {_escape_html(bridge.cta)}
+        '''
+        geo_html += f'''
+                    <div class="ai-block">
+                        <div class="ai-block-title">💬 话术转换方案</div>
+                        <div class="ai-block-content">{bridge_content}</div>
+                    </div>'''
+    
+    # 竞品分析
+    if result.competitor_analysis:
+        comp = result.competitor_analysis
+        comp_content = f'''
+            <strong>主品牌:</strong> {_escape_html(comp.brand)}<br>
+            <strong>竞品:</strong> {_escape_html(", ".join(comp.competitors))}<br>
+            <strong>对比维度:</strong> {_escape_html(", ".join(comp.comparison_points))}<br>
+            <strong>差异化点:</strong> {_escape_html(comp.differentiation)}
+        '''
+        geo_html += f'''
+                    <div class="ai-block">
+                        <div class="ai-block-title">🔍 竞品对比框架</div>
+                        <div class="ai-block-content">{comp_content}</div>
+                    </div>'''
+    
+    # GEO 推荐
+    if result.geo_recommendation:
+        rec = result.geo_recommendation
+        priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec.priority, "⚪")
+        rec_class = "recommended" if rec.recommended else "not-recommended"
+        
+        rec_content = f'''
+            <strong>推荐指数:</strong> <span class="{rec_class}">{'推荐' if rec.recommended else '不推荐'}</span><br>
+            <strong>优先级:</strong> {priority_emoji} <strong>{rec.priority.upper()}</strong><br>
+            <strong>信心度:</strong> {int(rec.confidence * 100)}%<br>
+            <strong>执行计划:</strong> {_escape_html(rec.execution_plan)}<br>
+            <strong>预期效果:</strong> {_escape_html(rec.expected_outcome)}
+        '''
+        geo_html += f'''
+                    <div class="ai-block">
+                        <div class="ai-block-title">✅ GEO 推荐</div>
+                        <div class="ai-block-content">{rec_content}</div>
+                    </div>'''
+    
+    geo_html += '''
+                </div>'''
+    return geo_html
+
+
+def get_geo_analysis_renderer(channel: str):
+    """根据渠道获取对应的 GEO 渲染函数"""
+    renderers = {
+        "feishu": render_geo_analysis_feishu,
+        "dingtalk": render_geo_analysis_markdown,
+        "wework": render_geo_analysis_markdown,
+        "telegram": render_geo_analysis_markdown,
+        "email": render_geo_analysis_html,
+        "ntfy": render_geo_analysis_markdown,
+        "bark": render_geo_analysis_markdown,
+        "slack": render_geo_analysis_markdown,
+    }
+    return renderers.get(channel, render_geo_analysis_markdown)

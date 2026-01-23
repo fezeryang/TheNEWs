@@ -234,17 +234,30 @@ class NewsAnalyzer:
         mode: str,
         report_type: str,
         id_to_name: Optional[Dict],
-    ) -> Optional[AIAnalysisResult]:
-        """执行 AI 分析"""
+    ) -> Optional:
+        """执行 AI 分析（支持通用模式和 GEO 模式）"""
         analysis_config = self.ctx.config.get("AI_ANALYSIS", {})
         if not analysis_config.get("ENABLED", False):
             return None
 
-        print("[AI] 正在进行 AI 分析...")
+        # 获取分析模式
+        analysis_mode = analysis_config.get("MODE", "general")
+        
+        if analysis_mode == "geo":
+            print("[GEO] 正在进行 GEO 借势分析...")
+        else:
+            print("[AI] 正在进行 AI 分析...")
+            
         try:
             ai_config = self.ctx.config.get("AI", {})
             debug_mode = self.ctx.config.get("DEBUG", False)
-            analyzer = AIAnalyzer(ai_config, analysis_config, self.ctx.get_time, debug=debug_mode)
+            
+            # 根据模式选择分析器
+            if analysis_mode == "geo":
+                from trendradar.ai import GEOAnalyzer
+                analyzer = GEOAnalyzer(ai_config, analysis_config, self.ctx.get_time, debug=debug_mode)
+            else:
+                analyzer = AIAnalyzer(ai_config, analysis_config, self.ctx.get_time, debug=debug_mode)
 
             # 提取平台列表
             platforms = list(id_to_name.values()) if id_to_name else []
@@ -261,14 +274,29 @@ class NewsAnalyzer:
                 keywords=keywords,
             )
 
+            # 常量：显示实体数量限制
+            MAX_DISPLAYED_ENTITIES = 3
+
             if result.success:
                 if result.error:
                     # 成功但有警告（如 JSON 解析问题但使用了原始文本）
-                    print(f"[AI] 分析完成（有警告: {result.error}）")
+                    prefix = "[GEO]" if analysis_mode == "geo" else "[AI]"
+                    print(f"{prefix} 分析完成（有警告: {result.error}）")
                 else:
-                    print("[AI] 分析完成")
+                    prefix = "[GEO]" if analysis_mode == "geo" else "[AI]"
+                    print(f"{prefix} 分析完成")
+                    
+                    # GEO 模式下打印更多信息
+                    if analysis_mode == "geo" and hasattr(result, 'entities'):
+                        entity_count = len(result.entities) if result.entities else 0
+                        print(f"[GEO] 识别到 {entity_count} 个热点实体")
+                        if result.entities:
+                            # 只显示前 N 个实体
+                            for entity in result.entities[:MAX_DISPLAYED_ENTITIES]:
+                                print(f"[GEO] - {entity.name} (营销价值: {entity.marketing_value}/100)")
             else:
-                print(f"[AI] 分析失败: {result.error}")
+                prefix = "[GEO]" if analysis_mode == "geo" else "[AI]"
+                print(f"{prefix} 分析失败: {result.error}")
 
             return result
         except Exception as e:
@@ -278,12 +306,19 @@ class NewsAnalyzer:
             # 截断过长的错误消息
             if len(error_msg) > 200:
                 error_msg = error_msg[:200] + "..."
-            print(f"[AI] 分析出错 ({error_type}): {error_msg}")
+            prefix = "[GEO]" if analysis_mode == "geo" else "[AI]"
+            print(f"{prefix} 分析出错 ({error_type}): {error_msg}")
             # 详细错误日志到 stderr
             import sys
-            print(f"[AI] 详细错误堆栈:", file=sys.stderr)
+            print(f"{prefix} 详细错误堆栈:", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
-            return AIAnalysisResult(success=False, error=f"{error_type}: {error_msg}")
+            
+            # 返回对应的结果对象
+            if analysis_mode == "geo":
+                from trendradar.ai import GEOAnalysisResult
+                return GEOAnalysisResult(success=False, error=f"{error_type}: {error_msg}")
+            else:
+                return AIAnalysisResult(success=False, error=f"{error_type}: {error_msg}")
 
     def _load_analysis_data(
         self,
