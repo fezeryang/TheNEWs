@@ -480,3 +480,34 @@ advanced:
     slack: 4000
   batch_send_interval: 3              # 批次发送间隔（秒）
   feishu_message_separator: "━━━━━━━━━━━━━━━━━━━"
+
+
+# ===============================================================
+# 14. GEO (Generative Engine Optimization) 分析配置
+#
+# GEO 趋势分析系统：将热点新闻转化为企业 GEO 服务的营销机会
+# ===============================================================
+geo:
+  enabled: false                          # 是否启用 GEO 分析（默认关闭）
+  
+  # 分析配置
+  analysis:
+    max_news: 10                          # 每次最多分析的新闻数量
+    min_marketing_score: 60               # 最低营销价值分数（0-100）
+    language: "Chinese"                   # 分析语言 (Chinese/English)
+    
+  # 输出配置
+  output:
+    directory: "output/geo_analysis"      # 输出目录
+    save_json: true                       # 保存 JSON 格式结果
+    save_report: false                    # 生成可读报告（未实现）
+    
+  # 过滤器
+  filters:
+    require_brand: true                   # 是否必须包含品牌实体
+    min_entity_score: 50                  # 实体最低热度分数
+    
+  # 推荐阈值
+  recommendation:
+    high_priority_score: 80               # 高优先级分数阈值
+    medium_priority_score: 60             # 中优先级分数阈值

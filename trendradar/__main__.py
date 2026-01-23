@@ -1311,6 +1311,100 @@ class NewsAnalyzer:
 
         return html_file
 
+    def _run_geo_analysis(self, results: Dict, id_to_name: Dict) -> None:
+        """
+        执行 GEO 分析流程
+        
+        Args:
+            results: 爬取的新闻结果
+            id_to_name: ID 到名称的映射
+        """
+        # 检查 GEO 配置
+        geo_config = self.ctx.config.get("GEO", {})
+        if not geo_config.get("enabled", False):
+            return
+        
+        try:
+            from trendradar.geo import GEORecommendationEngine
+            from trendradar.ai.client import AIClient
+            
+            print("\n" + "="*60)
+            print("开始 GEO (Generative Engine Optimization) 分析")
+            print("="*60)
+            
+            # 准备 AI 配置
+            ai_config = self.ctx.config.get("AI", {})
+            if not ai_config.get("MODEL"):
+                print("[GEO] ⚠️  未配置 AI 模型，跳过 GEO 分析")
+                return
+            
+            # 创建 AI 客户端
+            ai_client = AIClient(ai_config)
+            
+            # 获取 GEO 分析配置
+            analysis_config = geo_config.get("analysis", {})
+            language = analysis_config.get("language", "Chinese")
+            max_news = analysis_config.get("max_news", 10)
+            output_dir = geo_config.get("output", {}).get("directory", "output/geo_analysis")
+            
+            # 创建 GEO 推荐引擎
+            engine = GEORecommendationEngine(
+                ai_client=ai_client,
+                language=language,
+                output_dir=output_dir,
+            )
+            
+            # 准备新闻数据
+            news_list = []
+            for platform_id, items in results.items():
+                platform_name = id_to_name.get(platform_id, platform_id)
+                for item in items:
+                    news_list.append({
+                        "id": f"{platform_id}_{item.get('rank', 0)}",
+                        "title": item.get("title", ""),
+                        "content": item.get("title", ""),  # 热榜只有标题
+                        "url": item.get("url", ""),
+                        "platform": platform_name,
+                        "rank": item.get("rank", 0),
+                    })
+            
+            if not news_list:
+                print("[GEO] ⚠️  没有可分析的新闻")
+                return
+            
+            print(f"[GEO] 准备分析 {len(news_list)} 条新闻（最多分析 {max_news} 条）")
+            
+            # 批量分析
+            geo_results = engine.analyze_news_batch(news_list, max_news=max_news)
+            
+            # 保存结果
+            if geo_config.get("output", {}).get("save_json", True):
+                output_file = engine.save_results(geo_results)
+                print(f"[GEO] ✓ 结果已保存: {output_file}")
+            
+            # 显示高优先级推荐
+            high_priority = engine.get_high_priority_recommendations(geo_results)
+            if high_priority:
+                print(f"\n[GEO] 🔥 发现 {len(high_priority)} 个高优先级营销机会：")
+                for i, rec in enumerate(high_priority[:5], 1):
+                    print(f"  {i}. {rec.get('title', 'N/A')}")
+                    print(f"     品牌: {rec.get('main_brand', 'N/A')}")
+                    print(f"     营销分数: {rec.get('marketing_value', {}).get('score', 0)}")
+                    print(f"     推荐优先级: {rec.get('geo_recommendation', {}).get('priority', 'N/A')}")
+            else:
+                print(f"\n[GEO] ℹ️  未发现高优先级营销机会")
+            
+            print("="*60)
+            print("GEO 分析完成")
+            print("="*60 + "\n")
+            
+        except ImportError as e:
+            print(f"[GEO] ❌ 导入模块失败: {e}")
+        except Exception as e:
+            print(f"[GEO] ❌ GEO 分析失败: {e}")
+            if self.ctx.config.get("DEBUG", False):
+                raise
+
     def run(self) -> None:
         """执行分析流程"""
         try:
@@ -1330,6 +1424,9 @@ class NewsAnalyzer:
                 rss_items=rss_items, rss_new_items=rss_new_items,
                 raw_rss_items=raw_rss_items
             )
+            
+            # 执行 GEO 分析（如果启用）
+            self._run_geo_analysis(results, id_to_name)
 
         except Exception as e:
             print(f"分析流程执行出错: {e}")
