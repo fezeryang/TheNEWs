@@ -270,7 +270,15 @@ def _load_ai_translation_config(config_data: Dict) -> Dict:
 
 
 def _load_geo_config(config_data: Dict) -> Dict:
-    """加载 GEO 分析配置"""
+    """
+    加载 GEO 分析配置
+    
+    Args:
+        config_data: 从 YAML 文件加载的配置数据
+    
+    Returns:
+        Dict: 处理后的 GEO 配置，包含环境变量覆盖
+    """
     geo_config = config_data.get("geo", {})
     analysis_config = geo_config.get("analysis", {})
     output_config = geo_config.get("output", {})
