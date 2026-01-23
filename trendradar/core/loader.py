@@ -245,9 +245,12 @@ def _load_ai_analysis_config(config_data: Dict) -> Dict:
     ai_config = config_data.get("ai_analysis", {})
 
     enabled_env = _get_env_bool("AI_ANALYSIS_ENABLED")
+    mode_env = _get_env_str("AI_ANALYSIS_MODE")
 
     return {
         "ENABLED": enabled_env if enabled_env is not None else ai_config.get("enabled", False),
+        "MODE": mode_env or ai_config.get("mode", "generic"),
+        "GEO_FOCUS": ai_config.get("geo_focus", True),
         "LANGUAGE": ai_config.get("language", "Chinese"),
         "PROMPT_FILE": ai_config.get("prompt_file", "ai_analysis_prompt.txt"),
         "MAX_NEWS_FOR_ANALYSIS": ai_config.get("max_news_for_analysis", 50),

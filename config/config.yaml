@@ -389,12 +389,23 @@ ai:
 ai_analysis:
   enabled: true                     # 是否启用 AI 分析
 
+  # 分析模式选择
+  # - generic: 通用热点分析（默认）- 提供趋势、舆情、弱信号等深度分析
+  # - geo: GEO 营销机会分析 - 识别营销爆点、竞品对比、转化漏斗设计
+  mode: "generic"                   # 可选: generic | geo
+
+  # GEO 模式专属配置（仅在 mode: geo 时生效）
+  # 用于"借势引流"营销策略：将热点新闻流量转化为竞品分析需求
+  geo_focus: true                   # 是否强化 GEO 营销分析（实体识别、竞品对比）
+
   # 分析报告输出语言
   # 格式：自然语言描述
   # 示例: "English", "Korean", "法语"
   language: "Chinese"
 
   # 提示词配置文件路径（相对于 config 目录）
+  # - ai_analysis_prompt.txt: 通用热点分析提示词
+  # - ai_analysis_geo_prompt.txt: GEO 营销分析提示词
   prompt_file: "ai_analysis_prompt.txt"
 
   # 分析内容配置

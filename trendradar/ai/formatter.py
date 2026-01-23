@@ -57,6 +57,9 @@ def _format_list_content(text: str) -> str:
 
 def render_ai_analysis_markdown(result: AIAnalysisResult) -> str:
     """渲染为通用 Markdown 格式（Telegram、企业微信、ntfy、Bark、Slack）"""
+    if result.is_geo_mode:
+        return render_geo_analysis_markdown(result)
+    
     if not result.success:
         return f"⚠️ AI 分析失败: {result.error}"
 
@@ -82,6 +85,9 @@ def render_ai_analysis_markdown(result: AIAnalysisResult) -> str:
 
 def render_ai_analysis_feishu(result: AIAnalysisResult) -> str:
     """渲染为飞书卡片 Markdown 格式"""
+    if result.is_geo_mode:
+        return render_geo_analysis_feishu(result)
+    
     if not result.success:
         return f"⚠️ AI 分析失败: {result.error}"
 
@@ -107,6 +113,9 @@ def render_ai_analysis_feishu(result: AIAnalysisResult) -> str:
 
 def render_ai_analysis_dingtalk(result: AIAnalysisResult) -> str:
     """渲染为钉钉 Markdown 格式"""
+    if result.is_geo_mode:
+        return render_geo_analysis_dingtalk(result)
+    
     if not result.success:
         return f"⚠️ AI 分析失败: {result.error}"
 
@@ -299,3 +308,310 @@ def render_ai_analysis_html_rich(result: AIAnalysisResult) -> str:
     ai_html += '''
                 </div>'''
     return ai_html
+
+
+# ============================================================================
+# GEO 营销分析渲染函数
+# ============================================================================
+
+def render_geo_analysis_markdown(result: AIAnalysisResult) -> str:
+    """渲染 GEO 营销分析为 Markdown 格式（通用）"""
+    if not result.success:
+        return f"⚠️ GEO 营销分析失败: {result.error}"
+    
+    if not result.is_geo_mode:
+        return "⚠️ 非 GEO 模式分析结果"
+    
+    lines = ["**🎯 GEO 营销机会分析**", ""]
+    
+    # 1. 实体识别
+    if result.geo_entities:
+        lines.append("**🏷️ 识别品牌/产品**")
+        for entity in result.geo_entities:
+            name = entity.get("name", "")
+            etype = entity.get("type", "")
+            category = entity.get("category", "")
+            hotness = entity.get("hotness_score", 0)
+            impact = entity.get("market_impact", "")
+            lines.append(f"• {name} ({etype}) - {category} | 热度:{hotness} | 影响:{impact}")
+        lines.append("")
+    
+    # 2. 营销价值评估
+    if result.geo_marketing_value:
+        mv = result.geo_marketing_value
+        score = mv.get("score", 0)
+        rating = mv.get("overall_rating", "")
+        lines.append(f"**📊 营销价值评分: {score}/100** ({rating})")
+        
+        dimensions = mv.get("dimensions", {})
+        if dimensions:
+            lines.append("维度得分:")
+            lines.append(f"  争议性:{dimensions.get('controversy',0)} | 新品:{dimensions.get('new_product',0)} | 排名变化:{dimensions.get('ranking_change',0)}")
+            lines.append(f"  话题热度:{dimensions.get('topic_heat',0)} | 时效性:{dimensions.get('timeliness',0)} | 行业影响:{dimensions.get('industry_impact',0)}")
+        
+        reasons = mv.get("reasons", [])
+        if reasons:
+            lines.append("价值点:")
+            for reason in reasons:
+                lines.append(f"  • {reason}")
+        lines.append("")
+    
+    # 3. 转化漏斗设计
+    if result.geo_conversation_bridge:
+        cb = result.geo_conversation_bridge
+        lines.append("**🎣 转化漏斗设计**")
+        lines.append(f"Hook: {cb.get('hook', '')}")
+        lines.append(f"Bridge: {cb.get('bridge', '')}")
+        lines.append(f"CTA: {cb.get('call_to_action', '')}")
+        lines.append("")
+    
+    # 4. 竞品分析
+    if result.geo_competitor_analysis:
+        ca = result.geo_competitor_analysis
+        target = ca.get("target_brand", "")
+        competitors = ca.get("identified_competitors", [])
+        if target and competitors:
+            lines.append(f"**🔍 竞品对比: {target}**")
+            lines.append(f"主要竞争对手: {', '.join(competitors)}")
+            
+            dimensions = ca.get("comparison_dimensions", [])
+            if dimensions:
+                lines.append(f"对比维度: {', '.join(dimensions)}")
+            
+            insights = ca.get("strategic_insights", [])
+            if insights:
+                lines.append("战略洞察:")
+                for insight in insights:
+                    lines.append(f"  • {insight}")
+            lines.append("")
+    
+    # 5. 执行建议
+    if result.geo_recommendation:
+        rec = result.geo_recommendation
+        recommended = rec.get("recommended", False)
+        priority = rec.get("priority", "")
+        confidence = rec.get("confidence", 0)
+        
+        status_icon = "✅" if recommended else "❌"
+        lines.append(f"**{status_icon} 推荐度: {'推荐' if recommended else '不推荐'}** | 优先级:{priority} | 置信度:{confidence:.0%}")
+        
+        if recommended:
+            exec_plan = rec.get("execution_plan", {})
+            if exec_plan:
+                lines.append("执行计划:")
+                lines.append(f"  1️⃣ {exec_plan.get('phase_1_traffic', '')}")
+                lines.append(f"  2️⃣ {exec_plan.get('phase_2_engagement', '')}")
+                lines.append(f"  3️⃣ {exec_plan.get('phase_3_conversion', '')}")
+                lines.append(f"  📈 预估转化率: {exec_plan.get('estimated_conversion_rate', '')}")
+            
+            risk = rec.get("risk_assessment", "")
+            leads = rec.get("expected_leads", "")
+            if risk:
+                lines.append(f"风险评估: {risk}")
+            if leads:
+                lines.append(f"预期线索: {leads}")
+    
+    return "\n".join(lines)
+
+
+def render_geo_analysis_feishu(result: AIAnalysisResult) -> str:
+    """渲染 GEO 营销分析为飞书格式"""
+    if not result.success:
+        return f"⚠️ GEO 营销分析失败: {result.error}"
+    
+    if not result.is_geo_mode:
+        return "⚠️ 非 GEO 模式分析结果"
+    
+    lines = ["**🎯 GEO 营销机会分析**", ""]
+    
+    # 1. 实体识别
+    if result.geo_entities:
+        lines.append("**🏷️ 识别品牌/产品**")
+        for entity in result.geo_entities:
+            name = entity.get("name", "")
+            etype = entity.get("type", "")
+            category = entity.get("category", "")
+            hotness = entity.get("hotness_score", 0)
+            impact = entity.get("market_impact", "")
+            lines.append(f"• {name} <font color='grey'>({etype})</font> - {category} | <font color='orange'>热度:{hotness}</font> | 影响:{impact}")
+        lines.append("")
+    
+    # 2. 营销价值评估
+    if result.geo_marketing_value:
+        mv = result.geo_marketing_value
+        score = mv.get("score", 0)
+        rating = mv.get("overall_rating", "")
+        
+        score_color = "red" if score >= 80 else "orange" if score >= 60 else "grey"
+        lines.append(f"**📊 营销价值评分: <font color='{score_color}'>{score}/100</font>** ({rating})")
+        
+        dimensions = mv.get("dimensions", {})
+        if dimensions:
+            lines.append("维度得分:")
+            lines.append(f"  争议性:{dimensions.get('controversy',0)} | 新品:{dimensions.get('new_product',0)} | 排名变化:{dimensions.get('ranking_change',0)}")
+            lines.append(f"  话题热度:{dimensions.get('topic_heat',0)} | 时效性:{dimensions.get('timeliness',0)} | 行业影响:{dimensions.get('industry_impact',0)}")
+        
+        reasons = mv.get("reasons", [])
+        if reasons:
+            lines.append("价值点:")
+            for reason in reasons:
+                lines.append(f"  • {reason}")
+        lines.append("")
+    
+    # 3. 转化漏斗设计
+    if result.geo_conversation_bridge:
+        cb = result.geo_conversation_bridge
+        lines.append("**🎣 转化漏斗设计**")
+        lines.append(f"<font color='blue'>Hook:</font> {cb.get('hook', '')}")
+        lines.append(f"<font color='blue'>Bridge:</font> {cb.get('bridge', '')}")
+        lines.append(f"<font color='blue'>CTA:</font> {cb.get('call_to_action', '')}")
+        lines.append("")
+    
+    # 4. 竞品分析
+    if result.geo_competitor_analysis:
+        ca = result.geo_competitor_analysis
+        target = ca.get("target_brand", "")
+        competitors = ca.get("identified_competitors", [])
+        if target and competitors:
+            lines.append(f"**🔍 竞品对比: {target}**")
+            lines.append(f"主要竞争对手: {', '.join(competitors)}")
+            
+            dimensions = ca.get("comparison_dimensions", [])
+            if dimensions:
+                lines.append(f"对比维度: {', '.join(dimensions)}")
+            
+            insights = ca.get("strategic_insights", [])
+            if insights:
+                lines.append("战略洞察:")
+                for insight in insights:
+                    lines.append(f"  • {insight}")
+            lines.append("")
+    
+    # 5. 执行建议
+    if result.geo_recommendation:
+        rec = result.geo_recommendation
+        recommended = rec.get("recommended", False)
+        priority = rec.get("priority", "")
+        confidence = rec.get("confidence", 0)
+        
+        status_icon = "✅" if recommended else "❌"
+        status_color = "green" if recommended else "grey"
+        lines.append(f"**{status_icon} 推荐度: <font color='{status_color}'>{'推荐' if recommended else '不推荐'}</font>** | 优先级:{priority} | 置信度:{confidence:.0%}")
+        
+        if recommended:
+            exec_plan = rec.get("execution_plan", {})
+            if exec_plan:
+                lines.append("执行计划:")
+                lines.append(f"  1️⃣ {exec_plan.get('phase_1_traffic', '')}")
+                lines.append(f"  2️⃣ {exec_plan.get('phase_2_engagement', '')}")
+                lines.append(f"  3️⃣ {exec_plan.get('phase_3_conversion', '')}")
+                lines.append(f"  📈 预估转化率: {exec_plan.get('estimated_conversion_rate', '')}")
+            
+            risk = rec.get("risk_assessment", "")
+            leads = rec.get("expected_leads", "")
+            if risk:
+                lines.append(f"<font color='grey'>风险评估: {risk}</font>")
+            if leads:
+                lines.append(f"<font color='grey'>预期线索: {leads}</font>")
+    
+    return "\n".join(lines)
+
+
+def render_geo_analysis_dingtalk(result: AIAnalysisResult) -> str:
+    """渲染 GEO 营销分析为钉钉格式"""
+    if not result.success:
+        return f"⚠️ GEO 营销分析失败: {result.error}"
+    
+    if not result.is_geo_mode:
+        return "⚠️ 非 GEO 模式分析结果"
+    
+    lines = ["### 🎯 GEO 营销机会分析", ""]
+    
+    # 1. 实体识别
+    if result.geo_entities:
+        lines.append("#### 🏷️ 识别品牌/产品")
+        for entity in result.geo_entities:
+            name = entity.get("name", "")
+            etype = entity.get("type", "")
+            category = entity.get("category", "")
+            hotness = entity.get("hotness_score", 0)
+            impact = entity.get("market_impact", "")
+            lines.append(f"• **{name}** ({etype}) - {category} | 热度:**{hotness}** | 影响:{impact}")
+        lines.append("")
+    
+    # 2. 营销价值评估
+    if result.geo_marketing_value:
+        mv = result.geo_marketing_value
+        score = mv.get("score", 0)
+        rating = mv.get("overall_rating", "")
+        lines.append(f"#### 📊 营销价值评分: **{score}/100** ({rating})")
+        
+        dimensions = mv.get("dimensions", {})
+        if dimensions:
+            lines.append("维度得分:")
+            lines.append(f"  争议性:{dimensions.get('controversy',0)} | 新品:{dimensions.get('new_product',0)} | 排名变化:{dimensions.get('ranking_change',0)}")
+            lines.append(f"  话题热度:{dimensions.get('topic_heat',0)} | 时效性:{dimensions.get('timeliness',0)} | 行业影响:{dimensions.get('industry_impact',0)}")
+        
+        reasons = mv.get("reasons", [])
+        if reasons:
+            lines.append("价值点:")
+            for reason in reasons:
+                lines.append(f"  • {reason}")
+        lines.append("")
+    
+    # 3. 转化漏斗设计
+    if result.geo_conversation_bridge:
+        cb = result.geo_conversation_bridge
+        lines.append("#### 🎣 转化漏斗设计")
+        lines.append(f"**Hook:** {cb.get('hook', '')}")
+        lines.append(f"**Bridge:** {cb.get('bridge', '')}")
+        lines.append(f"**CTA:** {cb.get('call_to_action', '')}")
+        lines.append("")
+    
+    # 4. 竞品分析
+    if result.geo_competitor_analysis:
+        ca = result.geo_competitor_analysis
+        target = ca.get("target_brand", "")
+        competitors = ca.get("identified_competitors", [])
+        if target and competitors:
+            lines.append(f"#### 🔍 竞品对比: {target}")
+            lines.append(f"主要竞争对手: {', '.join(competitors)}")
+            
+            dimensions = ca.get("comparison_dimensions", [])
+            if dimensions:
+                lines.append(f"对比维度: {', '.join(dimensions)}")
+            
+            insights = ca.get("strategic_insights", [])
+            if insights:
+                lines.append("战略洞察:")
+                for insight in insights:
+                    lines.append(f"  • {insight}")
+            lines.append("")
+    
+    # 5. 执行建议
+    if result.geo_recommendation:
+        rec = result.geo_recommendation
+        recommended = rec.get("recommended", False)
+        priority = rec.get("priority", "")
+        confidence = rec.get("confidence", 0)
+        
+        status_icon = "✅" if recommended else "❌"
+        lines.append(f"#### {status_icon} 推荐度: **{'推荐' if recommended else '不推荐'}** | 优先级:{priority} | 置信度:{confidence:.0%}")
+        
+        if recommended:
+            exec_plan = rec.get("execution_plan", {})
+            if exec_plan:
+                lines.append("执行计划:")
+                lines.append(f"  1️⃣ {exec_plan.get('phase_1_traffic', '')}")
+                lines.append(f"  2️⃣ {exec_plan.get('phase_2_engagement', '')}")
+                lines.append(f"  3️⃣ {exec_plan.get('phase_3_conversion', '')}")
+                lines.append(f"  📈 预估转化率: {exec_plan.get('estimated_conversion_rate', '')}")
+            
+            risk = rec.get("risk_assessment", "")
+            leads = rec.get("expected_leads", "")
+            if risk:
+                lines.append(f"> 风险评估: {risk}")
+            if leads:
+                lines.append(f"> 预期线索: {leads}")
+    
+    return "\n".join(lines)
