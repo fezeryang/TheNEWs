@@ -4,6 +4,10 @@
 README.md
 
 output/
+test_geo_system.py
+example_geo_usage.py
+IMPLEMENTATION_SUMMARY.md
+GEO_README.md
 
 __pycache__/
 *.pyc
