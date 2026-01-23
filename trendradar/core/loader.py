@@ -250,13 +250,12 @@ def _load_ai_analysis_config(config_data: Dict) -> Dict:
     mode_env = _get_env_str("AI_ANALYSIS_MODE")
     mode = mode_env if mode_env else ai_config.get("mode", "general")
     
-    # 根据模式自动选择 prompt 文件
-    prompt_file = ai_config.get("prompt_file", "")
-    if not prompt_file:
-        if mode == "geo":
-            prompt_file = "ai_geo_prompt.txt"
-        else:
-            prompt_file = "ai_analysis_prompt.txt"
+    # 根据模式自动选择 prompt 文件（如果配置文件中使用的是默认值）
+    prompt_file = ai_config.get("prompt_file", "ai_analysis_prompt.txt")
+    
+    # 如果 mode 是 geo 且 prompt_file 还是通用的，自动切换到 geo prompt
+    if mode == "geo" and prompt_file == "ai_analysis_prompt.txt":
+        prompt_file = "ai_geo_prompt.txt"
 
     # GEO 专用配置
     geo_config = ai_config.get("geo", {})
