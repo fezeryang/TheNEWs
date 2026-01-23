@@ -16,7 +16,7 @@ from trendradar.ai.client import AIClient
 
 @dataclass
 class AIAnalysisResult:
-    """AI 分析结果"""
+    """AI 分析结果（通用模式）"""
     # 新版 5 核心板块
     core_trends: str = ""                # 核心热点与舆情态势
     sentiment_controversy: str = ""      # 舆论风向与争议
@@ -35,6 +35,29 @@ class AIAnalysisResult:
     max_news_limit: int = 0              # 分析上限配置值
     hotlist_count: int = 0               # 热榜新闻数
     rss_count: int = 0                   # RSS 新闻数
+    
+    # GEO 模式标记（用于区分分析类型）
+    is_geo_mode: bool = False            # 是否为 GEO 营销分析模式
+    
+    # GEO 营销分析结果（仅在 GEO 模式下使用）
+    geo_entities: List[Dict] = None              # 实体识别结果
+    geo_marketing_value: Dict = None             # 营销价值评估
+    geo_conversation_bridge: Dict = None         # 逻辑桥接（转化漏斗）
+    geo_competitor_analysis: Dict = None         # 竞品对比分析
+    geo_recommendation: Dict = None              # GEO 推荐建议
+    
+    def __post_init__(self):
+        """初始化 GEO 字段为空字典/列表"""
+        if self.geo_entities is None:
+            self.geo_entities = []
+        if self.geo_marketing_value is None:
+            self.geo_marketing_value = {}
+        if self.geo_conversation_bridge is None:
+            self.geo_conversation_bridge = {}
+        if self.geo_competitor_analysis is None:
+            self.geo_competitor_analysis = {}
+        if self.geo_recommendation is None:
+            self.geo_recommendation = {}
 
 
 class AIAnalyzer:
@@ -74,6 +97,10 @@ class AIAnalyzer:
         self.include_rss = analysis_config.get("INCLUDE_RSS", True)
         self.include_rank_timeline = analysis_config.get("INCLUDE_RANK_TIMELINE", False)
         self.language = analysis_config.get("LANGUAGE", "Chinese")
+        
+        # GEO 模式配置
+        self.analysis_mode = analysis_config.get("MODE", "generic")  # generic | geo
+        self.geo_focus = analysis_config.get("GEO_FOCUS", False)
 
         # 加载提示词模板
         self.system_prompt, self.user_prompt_template = self._load_prompt_template(
@@ -390,8 +417,15 @@ class AIAnalyzer:
         return "→".join(parts)
 
     def _parse_response(self, response: str) -> AIAnalysisResult:
-        """解析 AI 响应"""
-        result = AIAnalysisResult(raw_response=response)
+        """解析 AI 响应（根据模式选择解析方法）"""
+        if self.analysis_mode == "geo":
+            return self._parse_geo_response(response)
+        else:
+            return self._parse_generic_response(response)
+    
+    def _parse_generic_response(self, response: str) -> AIAnalysisResult:
+        """解析通用模式的 AI 响应"""
+        result = AIAnalysisResult(raw_response=response, is_geo_mode=False)
 
         if not response or not response.strip():
             result.error = "AI 返回空响应"
@@ -447,5 +481,62 @@ class AIAnalyzer:
             result.error = f"解析时发生未知错误: {type(e).__name__}: {str(e)}"
             result.core_trends = response[:500] if len(response) > 500 else response
             result.success = True
+
+        return result
+    
+    def _parse_geo_response(self, response: str) -> AIAnalysisResult:
+        """解析 GEO 营销分析模式的 AI 响应"""
+        result = AIAnalysisResult(raw_response=response, is_geo_mode=True)
+
+        if not response or not response.strip():
+            result.error = "AI 返回空响应"
+            return result
+
+        # 尝试解析 JSON
+        try:
+            # 提取 JSON 部分
+            json_str = response
+
+            if "```json" in response:
+                parts = response.split("```json", 1)
+                if len(parts) > 1:
+                    code_block = parts[1]
+                    end_idx = code_block.find("```")
+                    if end_idx != -1:
+                        json_str = code_block[:end_idx]
+                    else:
+                        json_str = code_block
+            elif "```" in response:
+                parts = response.split("```", 2)
+                if len(parts) >= 2:
+                    json_str = parts[1]
+
+            json_str = json_str.strip()
+            if not json_str:
+                raise ValueError("提取的 JSON 内容为空")
+
+            data = json.loads(json_str)
+
+            # GEO 模式字段解析
+            result.geo_entities = data.get("entities", [])
+            result.geo_marketing_value = data.get("marketing_value", {})
+            result.geo_conversation_bridge = data.get("conversation_bridge", {})
+            result.geo_competitor_analysis = data.get("competitor_analysis", {})
+            result.geo_recommendation = data.get("geo_recommendation", {})
+            
+            result.success = True
+
+        except json.JSONDecodeError as e:
+            error_context = json_str[max(0, e.pos - 30):e.pos + 30] if json_str and e.pos else ""
+            result.error = f"JSON 解析错误 (位置 {e.pos}): {e.msg}"
+            if error_context:
+                result.error += f"，上下文: ...{error_context}..."
+            result.success = False
+        except (IndexError, KeyError, TypeError, ValueError) as e:
+            result.error = f"响应解析错误: {type(e).__name__}: {str(e)}"
+            result.success = False
+        except Exception as e:
+            result.error = f"解析时发生未知错误: {type(e).__name__}: {str(e)}"
+            result.success = False
 
         return result
