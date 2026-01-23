@@ -173,6 +173,26 @@ After communication, the author indicated no concerns about server pressure, but
 >**📌 Check Latest Updates**: **[Original Repository Changelog](https://github.com/sansan0/TrendRadar?tab=readme-ov-file#-changelog)**:
 - **Tip**: Check [Changelog] to understand specific [Features]
 
+### 2026/01/23 - v5.4.0 (This Branch Enhancement)
+
+> **New Feature: GEO Marketing Opportunity Analysis System**
+
+- **GEO Mode**: New marketing opportunity discovery mode that converts trending traffic into business opportunities
+- **4-Step Conversion Funnel**:
+  - Entity Recognition: Auto-identify brands, products, industries and other marketing entities
+  - Marketing Value Assessment: Evaluate news marketing potential from 6 dimensions (0-100 score)
+  - Logical Bridge: Design Hook→Bridge→CTA conversion scripts
+  - Competitor Comparison: Auto-generate competitor analysis framework
+- **Configuration Enhancement**:
+  - Added `ai_analysis.mode` config option (generic | geo)
+  - Added `ai_analysis.geo_focus` config option (focus on specific domains)
+  - Added GEO-specific prompt file `ai_analysis_geo_prompt.txt`
+- **Rendering Optimization**: All push channels (Feishu, DingTalk, WeWork, Email, etc.) support GEO mode display
+- **Documentation**: Added complete `GEO_ANALYSIS_GUIDE.md` user guide
+
+> 💡 **Use Cases**: Marketing teams, brand managers, consulting firms seeking leverage opportunities  
+> 💡 **Detailed Guide**: [GEO_ANALYSIS_GUIDE.md](GEO_ANALYSIS_GUIDE.md)
+
 ### 2026/01/19 - v5.3.0
 
 > **Major Refactor: AI Module Migration to LiteLLM**
@@ -881,6 +901,56 @@ Real-time tracking of news popularity changes helps you understand not just "wha
 - **Cross-Platform Comparison**: Same news across different platforms, showing media attention differences
 
 > 💡 Push format reference: [Configuration Guide - Push Format Reference](#5-push-format-reference)
+
+### **AI Intelligent Analysis** (v5.0.0+ Supported)
+
+TrendRadar provides two AI analysis modes for different scenarios:
+
+#### **Generic Mode** - Understand Trending Insights
+
+Use AI models to deeply analyze trending news, outputting 5 core sections:
+
+1. **Core Trends** - Extract common narratives, discover underlying logic
+2. **Sentiment & Controversy** - Map emotion spectrum, identify viewpoint conflicts
+3. **Signals & Anomalies** - Capture trajectory mutations, predict potential trends
+4. **RSS Insights** - Expert perspectives supplement, correct public perception
+5. **Outlook & Strategy** - Predictions and actionable recommendations
+
+> 💡 Generic mode is suitable for: investors, researchers, content creators, general users
+
+#### **GEO Mode (Growth through Event Opportunities)** - Marketing Leverage System 🔥
+
+**Core Goal**: Convert trending news from public domain (traffic) into attention for enterprise services (products)
+
+GEO mode provides a 4-step marketing conversion funnel:
+
+| Step | Function | Output |
+|-----|---------|--------|
+| 1️⃣ **Entity Recognition** | Auto-identify brands, products, industries and other marketing entities | Hotness score (0-100), mentions, industry category |
+| 2️⃣ **Marketing Value Assessment** | Evaluate news marketing potential from 6 dimensions | Controversy, new product, ranking change, topic heat, timeliness, industry impact |
+| 3️⃣ **Logical Bridge** | Design conversion script from "onlooker" to "client consultation" | Hook → Bridge → CTA (Call To Action) |
+| 4️⃣ **Competitor Comparison** | Auto-identify competitors and generate comparison framework | Competitor list, comparison dimensions, strategic insights |
+
+**Example Output**:
+```
+Hook: "Xiaomi Auto plays new tricks — SU7 price reduction promotion"
+Bridge: "But have you ever thought about why it's cutting prices? What's the strategic logic behind it?"
+CTA: "Let's make a 'Xiaomi Auto vs. Competitors Strategy Comparison Report' to see whose strategy is smarter"
+Conversion Rate Estimate: 35-45%
+```
+
+> 💡 GEO mode is suitable for: marketing teams, brand managers, consulting firms, business development professionals
+>
+> 💡 Detailed guide see [GEO_ANALYSIS_GUIDE.md](GEO_ANALYSIS_GUIDE.md)
+
+**Configuration Toggle**:
+```yaml
+ai_analysis:
+  mode: "generic"  # Generic mode
+  # mode: "geo"    # GEO marketing leverage mode
+  prompt_file: "ai_analysis_prompt.txt"       # Generic mode prompt
+  # prompt_file: "ai_analysis_geo_prompt.txt" # GEO mode prompt
+```
 
 ### **Personalized Trending Algorithm**
 
