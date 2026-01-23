@@ -64,9 +64,11 @@ class MarketingValueAnalyzer:
             # 准备实体信息
             entities_str = ""
             if entities:
+                # Use language-aware formatting
+                separator = " (热度: " if self.language == "Chinese" else " (hotness: "
                 entities_str = "\n".join(
                     [
-                        f"- {e.get('name', '')} ({e.get('type', '')}, 热度: {e.get('hotness_score', 0)})"
+                        f"- {e.get('name', '')} ({e.get('type', '')}){separator}{e.get('hotness_score', 0)})"
                         for e in entities[:5]  # 只传递前5个
                     ]
                 )

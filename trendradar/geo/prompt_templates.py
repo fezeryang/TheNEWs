@@ -320,9 +320,9 @@ Please generate a complete GEO recommendation plan, including:
 
 Output in JSON format:
 {{
-    "recommended": "true/false",
-    "confidence_score": "0-100",
-    "priority": "high/medium/low",
+    "recommended": true,
+    "confidence_score": 85,
+    "priority": "high",
     "execution_plan": {{
         "content_strategy": "content strategy description",
         "channels": ["channel1", "channel2"],

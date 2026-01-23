@@ -483,31 +483,32 @@ advanced:
 
 
 # ===============================================================
-# 14. GEO (Generative Engine Optimization) 分析配置
+# 14. GEO (Generative Engine Optimization) Analysis Configuration
 #
-# GEO 趋势分析系统：将热点新闻转化为企业 GEO 服务的营销机会
+# GEO trending analysis system: Convert trending news into 
+# enterprise GEO service marketing opportunities
 # ===============================================================
 geo:
-  enabled: false                          # 是否启用 GEO 分析（默认关闭）
+  enabled: false                          # Enable GEO analysis (default: disabled)
   
-  # 分析配置
+  # Analysis settings
   analysis:
-    max_news: 10                          # 每次最多分析的新闻数量
-    min_marketing_score: 60               # 最低营销价值分数（0-100）
-    language: "Chinese"                   # 分析语言 (Chinese/English)
+    max_news: 10                          # Max news items to analyze per run
+    min_marketing_score: 60               # Minimum marketing value score (0-100)
+    language: "Chinese"                   # Analysis language (Chinese/English)
     
-  # 输出配置
+  # Output settings
   output:
-    directory: "output/geo_analysis"      # 输出目录
-    save_json: true                       # 保存 JSON 格式结果
-    save_report: false                    # 生成可读报告（未实现）
+    directory: "output/geo_analysis"      # Output directory
+    save_json: true                       # Save JSON format results
+    save_report: false                    # Generate readable report (not implemented)
     
-  # 过滤器
+  # Filters
   filters:
-    require_brand: true                   # 是否必须包含品牌实体
-    min_entity_score: 50                  # 实体最低热度分数
+    require_brand: true                   # Require brand entity identification
+    min_entity_score: 50                  # Minimum entity hotness score
     
-  # 推荐阈值
+  # Recommendation thresholds
   recommendation:
-    high_priority_score: 80               # 高优先级分数阈值
-    medium_priority_score: 60             # 中优先级分数阈值
+    high_priority_score: 80               # High priority score threshold
+    medium_priority_score: 60             # Medium priority score threshold

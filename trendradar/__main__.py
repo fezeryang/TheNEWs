@@ -1334,8 +1334,9 @@ class NewsAnalyzer:
             
             # 准备 AI 配置
             ai_config = self.ctx.config.get("AI", {})
-            if not ai_config.get("MODEL"):
-                print("[GEO] ⚠️  未配置 AI 模型，跳过 GEO 分析")
+            if not ai_config.get("MODEL") or not ai_config.get("API_KEY"):
+                print("[GEO] ⚠️  AI model or API key not configured, skipping GEO analysis")
+                print("[GEO] Please configure AI.MODEL and AI.API_KEY in config.yaml")
                 return
             
             # 创建 AI 客户端

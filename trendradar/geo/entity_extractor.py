@@ -57,7 +57,10 @@ class EntityExtractor:
             # 合并标题和内容
             full_content = content
             if title:
-                full_content = f"标题：{title}\n\n内容：{content}"
+                # Use language-aware labels
+                title_label = "标题：" if self.language == "Chinese" else "Title: "
+                content_label = "\n\n内容：" if self.language == "Chinese" else "\n\nContent: "
+                full_content = f"{title_label}{title}{content_label}{content}"
 
             # 生成 Prompt
             prompt = PromptTemplates.format_prompt(
