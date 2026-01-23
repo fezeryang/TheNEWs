@@ -274,6 +274,9 @@ class NewsAnalyzer:
                 keywords=keywords,
             )
 
+            # 常量：显示实体数量限制
+            MAX_DISPLAYED_ENTITIES = 3
+
             if result.success:
                 if result.error:
                     # 成功但有警告（如 JSON 解析问题但使用了原始文本）
@@ -288,7 +291,8 @@ class NewsAnalyzer:
                         entity_count = len(result.entities) if result.entities else 0
                         print(f"[GEO] 识别到 {entity_count} 个热点实体")
                         if result.entities:
-                            for entity in result.entities[:3]:  # 只显示前3个
+                            # 只显示前 N 个实体
+                            for entity in result.entities[:MAX_DISPLAYED_ENTITIES]:
                                 print(f"[GEO] - {entity.name} (营销价值: {entity.marketing_value}/100)")
             else:
                 prefix = "[GEO]" if analysis_mode == "geo" else "[AI]"

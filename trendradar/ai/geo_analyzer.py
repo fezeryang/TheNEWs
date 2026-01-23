@@ -207,23 +207,160 @@ class GEOAnalyzer:
         rss_stats: Optional[List[Dict]] = None,
     ) -> tuple:
         """
-        准备新闻内容文本（复用通用分析器的逻辑）
+        准备新闻内容文本（与通用分析器共享逻辑）
 
         Returns:
             tuple: (news_content, rss_content, hotlist_total, rss_total, analyzed_count)
         """
-        # 导入通用分析器的方法
-        from trendradar.ai.analyzer import AIAnalyzer
-        
-        # 创建临时通用分析器实例以复用其 _prepare_news_content 方法
-        temp_analyzer = AIAnalyzer(
-            self.ai_config,
-            self.analysis_config,
-            self.get_time_func,
-            self.debug
-        )
-        
-        return temp_analyzer._prepare_news_content(stats, rss_stats)
+        news_lines = []
+        rss_lines = []
+        news_count = 0
+        rss_count = 0
+
+        # 计算总新闻数
+        hotlist_total = sum(len(s.get("titles", [])) for s in stats) if stats else 0
+        rss_total = sum(len(s.get("titles", [])) for s in rss_stats) if rss_stats else 0
+
+        # 热榜内容
+        if stats:
+            for stat in stats:
+                word = stat.get("word", "")
+                titles = stat.get("titles", [])
+                if word and titles:
+                    news_lines.append(f"\n**{word}** ({len(titles)}条)")
+                    for t in titles:
+                        if not isinstance(t, dict):
+                            continue
+                        title = t.get("title", "")
+                        if not title:
+                            continue
+
+                        # 来源
+                        source = t.get("source_name", t.get("source", ""))
+
+                        # 构建行
+                        if source:
+                            line = f"- [{source}] {title}"
+                        else:
+                            line = f"- {title}"
+
+                        # 简化格式：排名范围 + 时间范围 + 出现次数
+                        ranks = t.get("ranks", [])
+                        if ranks:
+                            min_rank = min(ranks)
+                            max_rank = max(ranks)
+                            rank_str = f"{min_rank}" if min_rank == max_rank else f"{min_rank}-{max_rank}"
+                        else:
+                            rank_str = "-"
+
+                        first_time = t.get("first_time", "")
+                        last_time = t.get("last_time", "")
+                        time_str = self._format_time_range(first_time, last_time)
+
+                        appear_count = t.get("count", 1)
+
+                        line += f" | 排名:{rank_str} | 时间:{time_str} | 出现:{appear_count}次"
+
+                        # 开启完整时间线时，额外添加轨迹
+                        if self.include_rank_timeline:
+                            rank_timeline = t.get("rank_timeline", [])
+                            timeline_str = self._format_rank_timeline(rank_timeline)
+                            line += f" | 轨迹:{timeline_str}"
+
+                        news_lines.append(line)
+
+                        news_count += 1
+                        if news_count >= self.max_news:
+                            break
+                if news_count >= self.max_news:
+                    break
+
+        # RSS 内容（仅在启用时构建）
+        if self.include_rss and rss_stats:
+            remaining = self.max_news - news_count
+            for stat in rss_stats:
+                if rss_count >= remaining:
+                    break
+                word = stat.get("word", "")
+                titles = stat.get("titles", [])
+                if word and titles:
+                    rss_lines.append(f"\n**{word}** ({len(titles)}条)")
+                    for t in titles:
+                        if not isinstance(t, dict):
+                            continue
+                        title = t.get("title", "")
+                        if not title:
+                            continue
+
+                        # 来源
+                        source = t.get("source_name", t.get("feed_name", ""))
+
+                        # 发布时间
+                        time_display = t.get("time_display", "")
+
+                        # 构建行：[来源] 标题 | 发布时间
+                        if source:
+                            line = f"- [{source}] {title}"
+                        else:
+                            line = f"- {title}"
+                        if time_display:
+                            line += f" | {time_display}"
+                        rss_lines.append(line)
+
+                        rss_count += 1
+                        if rss_count >= remaining:
+                            break
+
+        news_content = "\n".join(news_lines) if news_lines else ""
+        rss_content = "\n".join(rss_lines) if rss_lines else ""
+        total_count = news_count + rss_count
+
+        return news_content, rss_content, hotlist_total, rss_total, total_count
+
+    def _format_time_range(self, first_time: str, last_time: str) -> str:
+        """格式化时间范围（简化显示，只保留时分）"""
+        def extract_time(time_str: str) -> str:
+            if not time_str:
+                return "-"
+            # 尝试提取 HH:MM 部分
+            if " " in time_str:
+                parts = time_str.split(" ")
+                if len(parts) >= 2:
+                    time_part = parts[1]
+                    if ":" in time_part:
+                        return time_part[:5]  # HH:MM
+            elif ":" in time_str:
+                return time_str[:5]
+            # 处理 HH-MM 格式
+            result = time_str[:5] if len(time_str) >= 5 else time_str
+            if len(result) == 5 and result[2] == '-':
+                result = result.replace('-', ':')
+            return result
+
+        first = extract_time(first_time)
+        last = extract_time(last_time)
+
+        if first == last or last == "-":
+            return first
+        return f"{first}~{last}"
+
+    def _format_rank_timeline(self, rank_timeline: List[Dict]) -> str:
+        """格式化排名时间线"""
+        if not rank_timeline:
+            return "-"
+
+        parts = []
+        for item in rank_timeline:
+            time_str = item.get("time", "")
+            if len(time_str) == 5 and time_str[2] == '-':
+                time_str = time_str.replace('-', ':')
+            rank = item.get("rank")
+            if rank is None:
+                parts.append(f"0({time_str})")
+            else:
+                parts.append(f"{rank}({time_str})")
+
+        return "→".join(parts)
 
     def _call_ai(self, user_prompt: str) -> str:
         """调用 AI API（使用 LiteLLM）"""
@@ -320,8 +457,10 @@ class GEOAnalyzer:
             result.success = True
 
         except json.JSONDecodeError as e:
-            error_context = json_str[max(0, e.pos - 30):e.pos + 30] if json_str and e.pos else ""
-            result.error = f"JSON 解析错误 (位置 {e.pos}): {e.msg}"
+            error_context = ""
+            if json_str and hasattr(e, 'pos') and e.pos is not None:
+                error_context = json_str[max(0, e.pos - 30):e.pos + 30]
+            result.error = f"JSON 解析错误 (位置 {e.pos if hasattr(e, 'pos') else 'unknown'}): {e.msg}"
             if error_context:
                 result.error += f"，上下文: ...{error_context}..."
         except (IndexError, KeyError, TypeError, ValueError) as e:

@@ -10,7 +10,8 @@ from typing import Any, Dict, List, Optional, Callable
 
 from trendradar.report.helpers import html_escape
 from trendradar.utils.time import convert_time_for_display
-from trendradar.ai.formatter import render_ai_analysis_html_rich
+from trendradar.ai.formatter import render_ai_analysis_html_rich, render_geo_analysis_html
+from trendradar.ai.geo_result import GEOAnalysisResult
 
 
 def _render_ai_or_geo_html(ai_analysis: Any) -> str:
@@ -19,11 +20,8 @@ def _render_ai_or_geo_html(ai_analysis: Any) -> str:
         return ""
     
     try:
-        from trendradar.ai.geo_result import GEOAnalysisResult
-        
         if isinstance(ai_analysis, GEOAnalysisResult):
             # GEO 分析结果
-            from trendradar.ai.formatter import render_geo_analysis_html
             return render_geo_analysis_html(ai_analysis)
         else:
             # 通用分析结果
