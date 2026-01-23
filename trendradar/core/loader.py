@@ -269,6 +269,57 @@ def _load_ai_translation_config(config_data: Dict) -> Dict:
     }
 
 
+def _load_geo_config(config_data: Dict) -> Dict:
+    """
+    加载 GEO 分析配置
+    
+    Args:
+        config_data: 从 YAML 文件加载的配置数据
+    
+    Returns:
+        Dict: 处理后的 GEO 配置，包含环境变量覆盖
+    """
+    geo_config = config_data.get("geo", {})
+    analysis_config = geo_config.get("analysis", {})
+    output_config = geo_config.get("output", {})
+    filters_config = geo_config.get("filters", {})
+    recommendation_config = geo_config.get("recommendation", {})
+
+    # 环境变量覆盖
+    enabled_env = _get_env_bool("GEO_ENABLED")
+    max_news_env = _get_env_int_or_none("GEO_MAX_NEWS")
+    min_marketing_score_env = _get_env_int_or_none("GEO_MIN_MARKETING_SCORE")
+    language_env = _get_env_str("GEO_LANGUAGE")
+    output_dir_env = _get_env_str("GEO_OUTPUT_DIR")
+    save_json_env = _get_env_bool("GEO_SAVE_JSON")
+    require_brand_env = _get_env_bool("GEO_REQUIRE_BRAND")
+    min_entity_score_env = _get_env_int_or_none("GEO_MIN_ENTITY_SCORE")
+    high_priority_score_env = _get_env_int_or_none("GEO_HIGH_PRIORITY_SCORE")
+    medium_priority_score_env = _get_env_int_or_none("GEO_MEDIUM_PRIORITY_SCORE")
+
+    return {
+        "enabled": enabled_env if enabled_env is not None else geo_config.get("enabled", False),
+        "analysis": {
+            "max_news": max_news_env if max_news_env is not None else analysis_config.get("max_news", 10),
+            "min_marketing_score": min_marketing_score_env if min_marketing_score_env is not None else analysis_config.get("min_marketing_score", 60),
+            "language": language_env or analysis_config.get("language", "Chinese"),
+        },
+        "output": {
+            "directory": output_dir_env or output_config.get("directory", "output/geo_analysis"),
+            "save_json": save_json_env if save_json_env is not None else output_config.get("save_json", True),
+            "save_report": output_config.get("save_report", False),
+        },
+        "filters": {
+            "require_brand": require_brand_env if require_brand_env is not None else filters_config.get("require_brand", True),
+            "min_entity_score": min_entity_score_env if min_entity_score_env is not None else filters_config.get("min_entity_score", 50),
+        },
+        "recommendation": {
+            "high_priority_score": high_priority_score_env if high_priority_score_env is not None else recommendation_config.get("high_priority_score", 80),
+            "medium_priority_score": medium_priority_score_env if medium_priority_score_env is not None else recommendation_config.get("medium_priority_score", 60),
+        },
+    }
+
+
 def _load_storage_config(config_data: Dict) -> Dict:
     """加载存储配置"""
     storage = config_data.get("storage", {})
@@ -496,6 +547,9 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 
     # AI 翻译配置
     config["AI_TRANSLATION"] = _load_ai_translation_config(config_data)
+
+    # GEO 分析配置
+    config["GEO"] = _load_geo_config(config_data)
 
     # 推送内容显示配置
     config["DISPLAY"] = _load_display_config(config_data)
