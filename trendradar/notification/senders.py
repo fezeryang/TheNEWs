@@ -34,13 +34,23 @@ from .formatters import convert_markdown_to_mrkdwn, strip_markdown
 
 
 def _render_ai_analysis(ai_analysis: Any, channel: str) -> str:
-    """渲染 AI 分析内容为指定渠道格式"""
+    """渲染 AI 分析内容为指定渠道格式（支持通用分析和 GEO 分析）"""
     if not ai_analysis:
         return ""
 
     try:
-        from trendradar.ai.formatter import get_ai_analysis_renderer
-        renderer = get_ai_analysis_renderer(channel)
+        # 检查是否为 GEO 分析结果
+        from trendradar.ai.geo_result import GEOAnalysisResult
+        
+        if isinstance(ai_analysis, GEOAnalysisResult):
+            # GEO 分析结果
+            from trendradar.ai.formatter import get_geo_analysis_renderer
+            renderer = get_geo_analysis_renderer(channel)
+        else:
+            # 通用分析结果
+            from trendradar.ai.formatter import get_ai_analysis_renderer
+            renderer = get_ai_analysis_renderer(channel)
+        
         return renderer(ai_analysis)
     except ImportError:
         return ""

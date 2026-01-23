@@ -245,14 +245,36 @@ def _load_ai_analysis_config(config_data: Dict) -> Dict:
     ai_config = config_data.get("ai_analysis", {})
 
     enabled_env = _get_env_bool("AI_ANALYSIS_ENABLED")
+    
+    # 支持环境变量 AI_ANALYSIS_MODE 配置分析模式
+    mode_env = _get_env_str("AI_ANALYSIS_MODE")
+    mode = mode_env if mode_env else ai_config.get("mode", "general")
+    
+    # 根据模式自动选择 prompt 文件
+    prompt_file = ai_config.get("prompt_file", "")
+    if not prompt_file:
+        if mode == "geo":
+            prompt_file = "ai_geo_prompt.txt"
+        else:
+            prompt_file = "ai_analysis_prompt.txt"
+
+    # GEO 专用配置
+    geo_config = ai_config.get("geo", {})
 
     return {
         "ENABLED": enabled_env if enabled_env is not None else ai_config.get("enabled", False),
+        "MODE": mode,
         "LANGUAGE": ai_config.get("language", "Chinese"),
-        "PROMPT_FILE": ai_config.get("prompt_file", "ai_analysis_prompt.txt"),
+        "PROMPT_FILE": prompt_file,
         "MAX_NEWS_FOR_ANALYSIS": ai_config.get("max_news_for_analysis", 50),
         "INCLUDE_RSS": ai_config.get("include_rss", True),
         "INCLUDE_RANK_TIMELINE": ai_config.get("include_rank_timeline", False),
+        # GEO 特定配置
+        "GEO": {
+            "MAX_ENTITIES": geo_config.get("max_entities", 5),
+            "MIN_MARKETING_SCORE": geo_config.get("min_marketing_score", 60),
+            "BRANDS_FILTER": geo_config.get("brands_filter", []),
+        }
     }
 
 

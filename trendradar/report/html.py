@@ -13,6 +13,25 @@ from trendradar.utils.time import convert_time_for_display
 from trendradar.ai.formatter import render_ai_analysis_html_rich
 
 
+def _render_ai_or_geo_html(ai_analysis: Any) -> str:
+    """渲染 AI 分析或 GEO 分析为 HTML（自动检测类型）"""
+    if not ai_analysis:
+        return ""
+    
+    try:
+        from trendradar.ai.geo_result import GEOAnalysisResult
+        
+        if isinstance(ai_analysis, GEOAnalysisResult):
+            # GEO 分析结果
+            from trendradar.ai.formatter import render_geo_analysis_html
+            return render_geo_analysis_html(ai_analysis)
+        else:
+            # 通用分析结果
+            return render_ai_analysis_html_rich(ai_analysis)
+    except Exception:
+        return render_ai_analysis_html_rich(ai_analysis)
+
+
 def render_html_content(
     report_data: Dict,
     total_titles: int,
@@ -1317,8 +1336,8 @@ def render_html_content(
     # 生成独立展示区 HTML
     standalone_html = render_standalone_html(standalone_data)
 
-    # 生成 AI 分析 HTML
-    ai_html = render_ai_analysis_html_rich(ai_analysis) if ai_analysis else ""
+    # 生成 AI 分析 HTML（支持通用分析和 GEO 分析）
+    ai_html = _render_ai_or_geo_html(ai_analysis)
 
     # 准备各区域内容映射
     region_contents = {

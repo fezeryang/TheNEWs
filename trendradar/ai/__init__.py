@@ -6,6 +6,8 @@ TrendRadar AI 模块
 """
 
 from .analyzer import AIAnalyzer, AIAnalysisResult
+from .geo_analyzer import GEOAnalyzer
+from .geo_result import GEOAnalysisResult, GEOEntity, ConversationBridge, CompetitorAnalysis, GEORecommendation
 from .translator import AITranslator, TranslationResult, BatchTranslationResult
 from .formatter import (
     get_ai_analysis_renderer,
@@ -15,12 +17,23 @@ from .formatter import (
     render_ai_analysis_html,
     render_ai_analysis_html_rich,
     render_ai_analysis_plain,
+    get_geo_analysis_renderer,
+    render_geo_analysis_markdown,
+    render_geo_analysis_feishu,
+    render_geo_analysis_html,
 )
 
 __all__ = [
     # 分析器
     "AIAnalyzer",
     "AIAnalysisResult",
+    # GEO 分析器
+    "GEOAnalyzer",
+    "GEOAnalysisResult",
+    "GEOEntity",
+    "ConversationBridge",
+    "CompetitorAnalysis",
+    "GEORecommendation",
     # 翻译器
     "AITranslator",
     "TranslationResult",
@@ -33,4 +46,9 @@ __all__ = [
     "render_ai_analysis_html",
     "render_ai_analysis_html_rich",
     "render_ai_analysis_plain",
+    # GEO 格式化
+    "get_geo_analysis_renderer",
+    "render_geo_analysis_markdown",
+    "render_geo_analysis_feishu",
+    "render_geo_analysis_html",
 ]
