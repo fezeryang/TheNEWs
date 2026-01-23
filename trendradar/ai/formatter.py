@@ -55,11 +55,240 @@ def _format_list_content(text: str) -> str:
     return result
 
 
+def _render_geo_analysis_markdown(geo_data: dict) -> str:
+    """渲染 GEO 分析为 Markdown 格式"""
+    lines = ["**🎯 GEO 营销机会分析**", ""]
+    
+    # 营销价值评估
+    marketing_value = geo_data.get("marketing_value", {})
+    score = marketing_value.get("score", 0)
+    rating = marketing_value.get("overall_rating", "")
+    
+    rating_emoji = {"high_opportunity": "🔥", "medium_opportunity": "📈", "low_opportunity": "📉", "not_suitable": "❌"}
+    emoji = rating_emoji.get(rating, "📊")
+    
+    lines.append(f"**营销价值评分**: {emoji} {score}/100 ({rating})")
+    lines.append("")
+    
+    # 识别实体
+    entities = geo_data.get("entities", [])
+    if entities:
+        lines.append("**📍 关键实体**")
+        for entity in entities[:5]:  # 最多显示 5 个
+            name = entity.get("name", "")
+            entity_type = entity.get("type", "")
+            hotness = entity.get("hotness_score", 0)
+            lines.append(f"  • {name} ({entity_type}) - 热度: {hotness}")
+        lines.append("")
+    
+    # 转换桥梁
+    bridge = geo_data.get("conversation_bridge", {})
+    if bridge:
+        lines.append("**💡 营销话术转换**")
+        hook = bridge.get("hook", "")
+        bridge_text = bridge.get("bridge", "")
+        cta = bridge.get("call_to_action", "")
+        
+        if hook:
+            lines.append(f"勾子: {hook}")
+        if bridge_text:
+            lines.append(f"桥梁: {bridge_text}")
+        if cta:
+            lines.append(f"行动: {cta}")
+        lines.append("")
+    
+    # 竞品分析
+    competitor = geo_data.get("competitor_analysis", {})
+    if competitor:
+        target = competitor.get("target_brand", "")
+        competitors = competitor.get("identified_competitors", [])
+        
+        if target:
+            lines.append(f"**🏆 竞品对标**: {target}")
+            if competitors:
+                lines.append(f"竞品: {', '.join(competitors[:5])}")
+            lines.append("")
+    
+    return "\n".join(lines)
+
+
+def _render_geo_analysis_feishu(geo_data: dict) -> str:
+    """渲染 GEO 分析为飞书格式"""
+    lines = ["**🎯 GEO 营销机会分析**", ""]
+    
+    # 营销价值评估
+    marketing_value = geo_data.get("marketing_value", {})
+    score = marketing_value.get("score", 0)
+    rating = marketing_value.get("overall_rating", "")
+    reasons = marketing_value.get("reasons", [])
+    
+    rating_map = {
+        "high_opportunity": "<font color='red'>🔥 高价值机会</font>",
+        "medium_opportunity": "<font color='orange'>📈 中等机会</font>",
+        "low_opportunity": "<font color='grey'>📉 低价值</font>",
+        "not_suitable": "<font color='grey'>❌ 不适合</font>"
+    }
+    rating_text = rating_map.get(rating, rating)
+    
+    lines.append(f"**营销价值**: {rating_text} ({score}/100)")
+    if reasons:
+        for reason in reasons[:3]:
+            lines.append(f"  • {reason}")
+    lines.append("")
+    
+    # 识别实体
+    entities = geo_data.get("entities", [])
+    if entities:
+        lines.append("**📍 关键实体识别**")
+        for entity in entities[:5]:
+            name = entity.get("name", "")
+            category = entity.get("category", "")
+            hotness = entity.get("hotness_score", 0)
+            
+            if hotness >= 80:
+                lines.append(f"  🔥 <font color='red'>{name}</font> ({category}) - 热度: {hotness}")
+            elif hotness >= 60:
+                lines.append(f"  📈 <font color='orange'>{name}</font> ({category}) - 热度: {hotness}")
+            else:
+                lines.append(f"  📌 {name} ({category}) - 热度: {hotness}")
+        lines.append("")
+    
+    # 转换桥梁 - 这是核心
+    bridge = geo_data.get("conversation_bridge", {})
+    if bridge:
+        lines.append("**💡 营销话术转换（Hook-Bridge-CTA）**")
+        hook = bridge.get("hook", "")
+        bridge_text = bridge.get("bridge", "")
+        cta = bridge.get("call_to_action", "")
+        prob = bridge.get("conversion_probability", "")
+        
+        if hook:
+            lines.append(f"<font color='green'>→ 勾子</font>: {hook}")
+        if bridge_text:
+            lines.append(f"<font color='blue'>→ 桥梁</font>: {bridge_text}")
+        if cta:
+            lines.append(f"<font color='red'>→ 行动召唤</font>: {cta}")
+        if prob:
+            lines.append(f"<font color='grey'>预估转化率: {prob}</font>")
+        lines.append("")
+    
+    # 竞品分析
+    competitor = geo_data.get("competitor_analysis", {})
+    if competitor:
+        target = competitor.get("target_brand", "")
+        competitors = competitor.get("identified_competitors", [])
+        insights = competitor.get("strategic_insights", [])
+        
+        lines.append(f"**🏆 竞品对标分析**")
+        if target:
+            lines.append(f"目标品牌: **{target}**")
+        if competitors:
+            lines.append(f"竞品: {', '.join(competitors[:5])}")
+        if insights:
+            lines.append("战略洞察:")
+            for insight in insights[:3]:
+                lines.append(f"  • {insight}")
+        lines.append("")
+    
+    return "\n".join(lines)
+
+
+def _render_geo_analysis_html(geo_data: dict) -> str:
+    """渲染 GEO 分析为 HTML 格式"""
+    html_parts = ['<div class="ai-analysis geo-analysis">', '<h3>🎯 GEO 营销机会分析</h3>']
+    
+    # 营销价值
+    marketing_value = geo_data.get("marketing_value", {})
+    score = marketing_value.get("score", 0)
+    rating = marketing_value.get("overall_rating", "")
+    reasons = marketing_value.get("reasons", [])
+    
+    rating_class_map = {
+        "high_opportunity": "high",
+        "medium_opportunity": "medium",
+        "low_opportunity": "low",
+        "not_suitable": "not-suitable"
+    }
+    rating_class = rating_class_map.get(rating, "")
+    
+    html_parts.append('<div class="ai-section geo-value">')
+    html_parts.append('<h4>营销价值评估</h4>')
+    html_parts.append(f'<div class="geo-score {rating_class}">评分: {score}/100</div>')
+    if reasons:
+        html_parts.append('<ul>')
+        for reason in reasons[:3]:
+            html_parts.append(f'<li>{_escape_html(reason)}</li>')
+        html_parts.append('</ul>')
+    html_parts.append('</div>')
+    
+    # 实体识别
+    entities = geo_data.get("entities", [])
+    if entities:
+        html_parts.append('<div class="ai-section geo-entities">')
+        html_parts.append('<h4>关键实体识别</h4>')
+        html_parts.append('<ul>')
+        for entity in entities[:5]:
+            name = _escape_html(entity.get("name", ""))
+            category = _escape_html(entity.get("category", ""))
+            hotness = entity.get("hotness_score", 0)
+            html_parts.append(f'<li><strong>{name}</strong> ({category}) - 热度: {hotness}</li>')
+        html_parts.append('</ul>')
+        html_parts.append('</div>')
+    
+    # 转换桥梁
+    bridge = geo_data.get("conversation_bridge", {})
+    if bridge:
+        html_parts.append('<div class="ai-section geo-bridge">')
+        html_parts.append('<h4>营销话术转换</h4>')
+        
+        hook = _escape_html(bridge.get("hook", ""))
+        bridge_text = _escape_html(bridge.get("bridge", ""))
+        cta = _escape_html(bridge.get("call_to_action", ""))
+        
+        if hook:
+            html_parts.append(f'<div class="bridge-step"><strong>勾子:</strong> {hook}</div>')
+        if bridge_text:
+            html_parts.append(f'<div class="bridge-step"><strong>桥梁:</strong> {bridge_text}</div>')
+        if cta:
+            html_parts.append(f'<div class="bridge-step"><strong>行动召唤:</strong> {cta}</div>')
+        html_parts.append('</div>')
+    
+    # 竞品分析
+    competitor = geo_data.get("competitor_analysis", {})
+    if competitor:
+        html_parts.append('<div class="ai-section geo-competitor">')
+        html_parts.append('<h4>竞品对标分析</h4>')
+        
+        target = _escape_html(competitor.get("target_brand", ""))
+        competitors = competitor.get("identified_competitors", [])
+        insights = competitor.get("strategic_insights", [])
+        
+        if target:
+            html_parts.append(f'<p><strong>目标品牌:</strong> {target}</p>')
+        if competitors:
+            comps = ", ".join(_escape_html(c) for c in competitors[:5])
+            html_parts.append(f'<p><strong>竞品:</strong> {comps}</p>')
+        if insights:
+            html_parts.append('<ul>')
+            for insight in insights[:3]:
+                html_parts.append(f'<li>{_escape_html(insight)}</li>')
+            html_parts.append('</ul>')
+        html_parts.append('</div>')
+    
+    html_parts.append('</div>')
+    return "\n".join(html_parts)
+
+
 def render_ai_analysis_markdown(result: AIAnalysisResult) -> str:
     """渲染为通用 Markdown 格式（Telegram、企业微信、ntfy、Bark、Slack）"""
     if not result.success:
         return f"⚠️ AI 分析失败: {result.error}"
 
+    # GEO 模式
+    if result.analysis_mode == "geo" and result.geo_data:
+        return _render_geo_analysis_markdown(result.geo_data)
+
+    # 通用模式
     lines = ["**✨ AI 热点分析**", ""]
 
     if result.core_trends:
@@ -85,6 +314,11 @@ def render_ai_analysis_feishu(result: AIAnalysisResult) -> str:
     if not result.success:
         return f"⚠️ AI 分析失败: {result.error}"
 
+    # GEO 模式
+    if result.analysis_mode == "geo" and result.geo_data:
+        return _render_geo_analysis_feishu(result.geo_data)
+
+    # 通用模式
     lines = ["**✨ AI 热点分析**", ""]
 
     if result.core_trends:
@@ -110,6 +344,11 @@ def render_ai_analysis_dingtalk(result: AIAnalysisResult) -> str:
     if not result.success:
         return f"⚠️ AI 分析失败: {result.error}"
 
+    # GEO 模式 - 使用飞书格式（钉钉支持类似的 Markdown）
+    if result.analysis_mode == "geo" and result.geo_data:
+        return _render_geo_analysis_feishu(result.geo_data).replace("**✨", "### ✨").replace("**🎯", "### 🎯")
+
+    # 通用模式
     lines = ["### ✨ AI 热点分析", ""]
 
     if result.core_trends:
@@ -135,6 +374,11 @@ def render_ai_analysis_html(result: AIAnalysisResult) -> str:
     if not result.success:
         return f'<div class="ai-error">⚠️ AI 分析失败: {_escape_html(result.error)}</div>'
 
+    # GEO 模式
+    if result.analysis_mode == "geo" and result.geo_data:
+        return _render_geo_analysis_html(result.geo_data)
+
+    # 通用模式
     html_parts = ['<div class="ai-analysis">', '<h3>✨ AI 热点分析</h3>']
 
     if result.core_trends:
@@ -196,6 +440,11 @@ def render_ai_analysis_plain(result: AIAnalysisResult) -> str:
     if not result.success:
         return f"AI 分析失败: {result.error}"
 
+    # GEO 模式 - 简化版
+    if result.analysis_mode == "geo" and result.geo_data:
+        return _render_geo_analysis_markdown(result.geo_data).replace("**", "").replace("<font color='", "[").replace("'></font>", "]")
+
+    # 通用模式
     lines = ["【✨ AI 热点分析】", ""]
 
     if result.core_trends:
@@ -244,6 +493,11 @@ def render_ai_analysis_html_rich(result: AIAnalysisResult) -> str:
                     <div class="ai-error">⚠️ AI 分析失败: {_escape_html(str(error_msg))}</div>
                 </div>'''
 
+    # GEO 模式
+    if result.analysis_mode == "geo" and result.geo_data:
+        return _render_geo_analysis_html(result.geo_data)
+
+    # 通用模式
     ai_html = '''
                 <div class="ai-section">
                     <div class="ai-section-header">

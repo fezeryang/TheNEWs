@@ -7,7 +7,7 @@ AI 分析器模块
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -17,12 +17,18 @@ from trendradar.ai.client import AIClient
 @dataclass
 class AIAnalysisResult:
     """AI 分析结果"""
-    # 新版 5 核心板块
+    # 通用字段
+    analysis_mode: str = "generic"       # 分析模式: generic | geo
+    
+    # 通用模式字段 (5 核心板块)
     core_trends: str = ""                # 核心热点与舆情态势
     sentiment_controversy: str = ""      # 舆论风向与争议
     signals: str = ""                    # 异动与弱信号
     rss_insights: str = ""               # RSS 深度洞察
     outlook_strategy: str = ""           # 研判与策略建议
+
+    # GEO 模式字段
+    geo_data: Optional[Dict[str, Any]] = None  # GEO 分析完整数据（JSON 格式）
 
     # 基础元数据
     raw_response: str = ""               # 原始响应
@@ -74,6 +80,10 @@ class AIAnalyzer:
         self.include_rss = analysis_config.get("INCLUDE_RSS", True)
         self.include_rank_timeline = analysis_config.get("INCLUDE_RANK_TIMELINE", False)
         self.language = analysis_config.get("LANGUAGE", "Chinese")
+        
+        # GEO 模式配置
+        self.mode = analysis_config.get("MODE", "generic")  # generic | geo
+        self.geo_focus = analysis_config.get("GEO_FOCUS", "")  # GEO 关注领域（可选）
 
         # 加载提示词模板
         self.system_prompt, self.user_prompt_template = self._load_prompt_template(
@@ -176,8 +186,9 @@ class AIAnalyzer:
         user_prompt = user_prompt.replace("{language}", self.language)
 
         if self.debug:
+            log_prefix = "[GEO AI 调试]" if self.mode == "geo" else "[AI 调试]"
             print("\n" + "=" * 80)
-            print("[AI 调试] 发送给 AI 的完整提示词")
+            print(f"{log_prefix} 发送给 AI 的完整提示词")
             print("=" * 80)
             if self.system_prompt:
                 print("\n--- System Prompt ---")
@@ -391,7 +402,7 @@ class AIAnalyzer:
 
     def _parse_response(self, response: str) -> AIAnalysisResult:
         """解析 AI 响应"""
-        result = AIAnalysisResult(raw_response=response)
+        result = AIAnalysisResult(raw_response=response, analysis_mode=self.mode)
 
         if not response or not response.strip():
             result.error = "AI 返回空响应"
@@ -422,14 +433,33 @@ class AIAnalyzer:
 
             data = json.loads(json_str)
 
-            # 新版字段解析
-            result.core_trends = data.get("core_trends", "")
-            result.sentiment_controversy = data.get("sentiment_controversy", "")
-            result.signals = data.get("signals", "")
-            result.rss_insights = data.get("rss_insights", "")
-            result.outlook_strategy = data.get("outlook_strategy", "")
+            # 检查模式
+            response_mode = data.get("analysis_mode", "generic")
             
-            result.success = True
+            if response_mode == "geo" or self.mode == "geo":
+                # GEO 模式解析
+                result.analysis_mode = "geo"
+                result.geo_data = data
+                
+                # 验证必需字段
+                required_fields = ["entities", "marketing_value", "conversation_bridge", "competitor_analysis"]
+                for field in required_fields:
+                    if field not in data:
+                        result.error = f"GEO 模式缺少必需字段: {field}"
+                        result.success = False
+                        return result
+                
+                result.success = True
+                
+            else:
+                # 通用模式解析
+                result.core_trends = data.get("core_trends", "")
+                result.sentiment_controversy = data.get("sentiment_controversy", "")
+                result.signals = data.get("signals", "")
+                result.rss_insights = data.get("rss_insights", "")
+                result.outlook_strategy = data.get("outlook_strategy", "")
+                
+                result.success = True
 
         except json.JSONDecodeError as e:
             error_context = json_str[max(0, e.pos - 30):e.pos + 30] if json_str and e.pos else ""
