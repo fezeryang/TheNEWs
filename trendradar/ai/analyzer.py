@@ -19,7 +19,7 @@ class AIAnalysisResult:
     """AI 分析结果"""
     # 通用字段
     analysis_mode: str = "generic"       # 分析模式: generic | geo
-    
+
     # 通用模式字段 (5 核心板块)
     core_trends: str = ""                # 核心热点与舆情态势
     sentiment_controversy: str = ""      # 舆论风向与争议
@@ -29,6 +29,15 @@ class AIAnalysisResult:
 
     # GEO 模式字段
     geo_data: Optional[Dict[str, Any]] = None  # GEO 分析完整数据（JSON 格式）
+
+    # 内容安全检查字段
+    is_safe: bool = True                 # 内容是否安全可发布
+    blocked_categories: List[str] = field(default_factory=list)  # 触发的禁入类别
+    safety_reasoning: str = ""           # 安全性判断理由
+
+    # 内容生成字段（GEO 模式扩展）
+    xiaohongshu_content: Optional[Dict[str, Any]] = None  # 小红书笔记内容
+    wechat_article: Optional[Dict[str, Any]] = None       # 公众号文章内容
 
     # 基础元数据
     raw_response: str = ""               # 原始响应
@@ -120,6 +129,122 @@ class AIAnalyzer:
             user_prompt = content
 
         return system_prompt, user_prompt
+
+    def analyze_hotspot(
+        self,
+        hotspot_news: List[Dict],
+        report_mode: str = "hotspot",
+        report_type: str = "热点分析",
+    ) -> AIAnalysisResult:
+        """
+        直接分析热点新闻（不依赖关键词匹配）
+
+        Args:
+            hotspot_news: 热点新闻列表，每项包含 title, source_name, rank, ranks, first_time, last_time, count 等
+            report_mode: 报告模式
+            report_type: 报告类型
+
+        Returns:
+            AIAnalysisResult: 分析结果
+        """
+        if not self.client.api_key:
+            return AIAnalysisResult(
+                success=False,
+                error="未配置 AI API Key，请在 config.yaml 或环境变量 AI_API_KEY 中设置"
+            )
+
+        if not hotspot_news:
+            return AIAnalysisResult(
+                success=False,
+                error="没有热点新闻可分析",
+                total_news=0,
+                analyzed_news=0,
+                max_news_limit=self.max_news
+            )
+
+        # 限制分析数量
+        news_to_analyze = hotspot_news[:self.max_news]
+
+        # 构建热点新闻内容文本
+        news_lines = []
+        for item in news_to_analyze:
+            title = item.get("title", "")
+            source = item.get("source_name", item.get("source", ""))
+            rank = item.get("rank", 0)
+            ranks = item.get("ranks", [])
+
+            # 构建行
+            line = f"- [{source}] {title}"
+            line += f" | 排名:{rank}"
+
+            # 时间范围
+            first_time = item.get("first_time", "")
+            last_time = item.get("last_time", "")
+            if first_time or last_time:
+                time_str = self._format_time_range(first_time, last_time)
+                line += f" | 时间:{time_str}"
+
+            # 出现次数
+            count = item.get("count", 1)
+            if count > 1:
+                line += f" | 出现:{count}次"
+
+            news_lines.append(line)
+
+        news_content = "\n".join(news_lines)
+
+        # 构建提示词
+        current_time = self.get_time_func().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 使用安全的字符串替换
+        user_prompt = self.user_prompt_template
+        user_prompt = user_prompt.replace("{report_mode}", report_mode)
+        user_prompt = user_prompt.replace("{report_type}", report_type)
+        user_prompt = user_prompt.replace("{current_time}", current_time)
+        user_prompt = user_prompt.replace("{news_count}", str(len(news_to_analyze)))
+        user_prompt = user_prompt.replace("{rss_count}", "0")
+        user_prompt = user_prompt.replace("{platforms}", "多平台热榜")
+        user_prompt = user_prompt.replace("{keywords}", "热点新闻（无关键词过滤）")
+        user_prompt = user_prompt.replace("{news_content}", news_content)
+        user_prompt = user_prompt.replace("{rss_content}", "")
+        user_prompt = user_prompt.replace("{language}", self.language)
+
+        if self.debug:
+            log_prefix = "[GEO 热点模式调试]"
+            print("\n" + "=" * 80)
+            print(f"{log_prefix} 发送给 AI 的完整提示词")
+            print("=" * 80)
+            if self.system_prompt:
+                print("\n--- System Prompt ---")
+                print(self.system_prompt)
+            print("\n--- User Prompt ---")
+            print(user_prompt)
+            print("=" * 80 + "\n")
+
+        # 调用 AI API
+        try:
+            response = self._call_ai(user_prompt)
+            result = self._parse_response(response)
+
+            # 填充统计数据
+            result.total_news = len(hotspot_news)
+            result.hotlist_count = len(hotspot_news)
+            result.rss_count = 0
+            result.analyzed_news = len(news_to_analyze)
+            result.max_news_limit = self.max_news
+            return result
+        except Exception as e:
+            error_type = type(e).__name__
+            error_msg = str(e)
+
+            if len(error_msg) > 200:
+                error_msg = error_msg[:200] + "..."
+            friendly_msg = f"AI 分析失败 ({error_type}): {error_msg}"
+
+            return AIAnalysisResult(
+                success=False,
+                error=friendly_msg
+            )
 
     def analyze(
         self,
@@ -435,12 +560,34 @@ class AIAnalyzer:
 
             # 检查模式
             response_mode = data.get("analysis_mode", "generic")
-            
+
             if response_mode == "geo" or self.mode == "geo":
                 # GEO 模式解析
                 result.analysis_mode = "geo"
                 result.geo_data = data
-                
+
+                # 检查内容安全性
+                safety_check = data.get("safety_check", {})
+                is_safe = safety_check.get("is_safe", True)
+                result.is_safe = is_safe
+                result.blocked_categories = safety_check.get("blocked_categories", [])
+                result.safety_reasoning = safety_check.get("reasoning", "")
+
+                if not is_safe:
+                    # 内容不安全，不生成内容
+                    result.error = f"内容不安全，已跳过生成。原因: {result.safety_reasoning}"
+                    if result.blocked_categories:
+                        result.error += f" | 触发类别: {', '.join(result.blocked_categories)}"
+
+                    result.success = True  # 分析成功，但内容不安全
+                    result.xiaohongshu_content = None
+                    result.wechat_article = None
+                    return result
+
+                # 提取内容生成字段（如果有）
+                result.xiaohongshu_content = data.get("xiaohongshu_content")
+                result.wechat_article = data.get("wechat_article")
+
                 # 验证必需字段
                 required_fields = ["entities", "marketing_value", "conversation_bridge", "competitor_analysis"]
                 for field in required_fields:
@@ -448,7 +595,7 @@ class AIAnalyzer:
                         result.error = f"GEO 模式缺少必需字段: {field}"
                         result.success = False
                         return result
-                
+
                 result.success = True
                 
             else:

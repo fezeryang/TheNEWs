@@ -1,8 +1,10 @@
-
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
+
+# Ignore output folder
+output/
 

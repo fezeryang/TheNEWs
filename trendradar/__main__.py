@@ -21,6 +21,7 @@ from trendradar.crawler import DataFetcher
 from trendradar.storage import convert_crawl_results_to_news_data
 from trendradar.utils.time import is_within_days
 from trendradar.ai import AIAnalyzer, AIAnalysisResult
+from trendradar.content import ContentManager
 
 
 def check_version_update(
@@ -285,6 +286,57 @@ class NewsAnalyzer:
             traceback.print_exc(file=sys.stderr)
             return AIAnalysisResult(success=False, error=f"{error_type}: {error_msg}")
 
+    def _save_generated_content(
+        self,
+        ai_result: AIAnalysisResult,
+        date_folder: str,
+    ) -> Dict[str, Optional[str]]:
+        """
+        保存 AI 生成的内容（小红书笔记、公众号文章）
+
+        Args:
+            ai_result: AI 分析结果
+            date_folder: 日期文件夹
+
+        Returns:
+            保存的文件路径字典
+        """
+        if not ai_result or not ai_result.success:
+            return {}
+
+        # 检查内容安全性
+        if not ai_result.is_safe:
+            print(f"[内容生成] 内容安全检查未通过，跳过保存")
+            print(f"  原因: {ai_result.safety_reasoning}")
+            if ai_result.blocked_categories:
+                print(f"  触发类别: {', '.join(ai_result.blocked_categories)}")
+            return {}
+
+        # 检查是否有内容需要保存
+        if not ai_result.xiaohongshu_content and not ai_result.wechat_article:
+            return {}
+
+        try:
+            content_manager = ContentManager(output_dir="output/content")
+            paths = content_manager.save_all_content(ai_result, date_folder)
+
+            # 输出保存结果
+            if paths:
+                print("[内容生产] 内容已保存到：")
+                if paths.get("xiaohongshu"):
+                    print(f"  📕 小红书: {paths['xiaohongshu']}")
+                if paths.get("wechat"):
+                    print(f"  📊 公众号: {paths['wechat']}")
+                if paths.get("xiaohongshu_prompt"):
+                    print(f"  🎨 小红书配图: {paths['xiaohongshu_prompt']}")
+                if paths.get("wechat_prompt"):
+                    print(f"  🎨 公众号配图: {paths['wechat_prompt']}")
+
+            return paths
+        except Exception as e:
+            print(f"[内容生产] 保存失败: {e}")
+            return {}
+
     def _load_analysis_data(
         self,
         quiet: bool = False,
@@ -323,6 +375,138 @@ class NewsAnalyzer:
         except Exception as e:
             print(f"数据加载失败: {e}")
             return None
+
+    def _get_hotspot_news(
+        self,
+        results: Dict,
+        id_to_name: Dict,
+        title_info: Optional[Dict] = None,
+        max_count: int = 30,
+    ) -> List[Dict]:
+        """
+        获取热点新闻（不依赖关键词过滤）
+
+        直接取排名靠前的热点新闻，用于 GEO 模式分析
+
+        Args:
+            results: 原始爬取结果 {platform_id: {title: title_data}}
+            id_to_name: 平台 ID 到名称的映射
+            title_info: 标题元信息（可选）
+            max_count: 最大返回数量
+
+        Returns:
+            热点新闻列表，按热度排序
+        """
+        hot_news = []
+
+        for source_id, titles_data in results.items():
+            source_name = id_to_name.get(source_id, source_id)
+
+            for title, title_data in titles_data.items():
+                ranks = title_data.get("ranks", [])
+                current_rank = ranks[-1] if ranks else 999
+
+                # 获取元信息
+                meta = {}
+                if title_info and source_id in title_info and title in title_info[source_id]:
+                    meta = title_info[source_id][title]
+
+                hot_news.append({
+                    "title": title,
+                    "source_name": source_name,
+                    "source": source_id,
+                    "rank": current_rank,
+                    "ranks": ranks,
+                    "first_time": meta.get("first_time", ""),
+                    "last_time": meta.get("last_time", ""),
+                    "count": meta.get("count", 1),
+                    "url": title_data.get("url", ""),
+                    "mobileUrl": title_data.get("mobileUrl", ""),
+                })
+
+        # 按排名排序（排名数字越小越热）
+        hot_news.sort(key=lambda x: x["rank"] if x["rank"] > 0 else 999)
+
+        # 返回前 N 条
+        return hot_news[:max_count]
+
+    def _run_hotspot_geo_analysis(
+        self,
+        results: Dict,
+        id_to_name: Dict,
+        title_info: Optional[Dict] = None,
+        quiet: bool = False,
+    ) -> Optional[AIAnalysisResult]:
+        """
+        运行热点 GEO 分析（不依赖关键词过滤）
+
+        直接取热榜排名靠前的新闻，进行 GEO 借势营销分析
+
+        Args:
+            results: 原始爬取结果
+            id_to_name: 平台 ID 到名称的映射
+            title_info: 标题元信息
+            quiet: 是否安静模式
+
+        Returns:
+            AI 分析结果
+        """
+        # 获取配置
+        ai_config = self.ctx.config.get("AI_ANALYSIS", {})
+        hotspot_max_count = ai_config.get("hotspot_max_count", 30)
+
+        # 获取热点新闻
+        hotspot_news = self._get_hotspot_news(
+            results, id_to_name, title_info, max_count=hotspot_max_count
+        )
+
+        if not hotspot_news:
+            if not quiet:
+                print("[热点GEO] 没有热点新闻可分析")
+            return None
+
+        if not quiet:
+            print(f"[热点GEO] 获取到 {len(hotspot_news)} 条热点新闻")
+
+        # 进行 AI 分析
+        try:
+            ai_config = self.ctx.config.get("AI", {})
+            debug_mode = self.ctx.config.get("DEBUG", False)
+            analyzer = AIAnalyzer(ai_config, ai_config, self.ctx.get_time, debug=debug_mode)
+
+            result = analyzer.analyze_hotspot(
+                hotspot_news=hotspot_news,
+                report_mode="hotspot",
+                report_type="热点借势分析",
+            )
+
+            if result.success:
+                if result.error:
+                    print(f"[热点GEO] 分析完成（有警告: {result.error}）")
+                else:
+                    print("[热点GEO] 分析完成")
+
+                # 保存生成的内容
+                if result.is_safe and (result.xiaohongshu_content or result.wechat_article):
+                    date_folder = self.ctx.format_date()
+                    self._save_generated_content(result, date_folder)
+            else:
+                print(f"[热点GEO] 分析失败: {result.error}")
+
+            return result
+
+        except Exception as e:
+            import traceback
+            error_type = type(e).__name__
+            error_msg = str(e)
+            if len(error_msg) > 200:
+                error_msg = error_msg[:200] + "..."
+            print(f"[热点GEO] 分析出错 ({error_type}): {error_msg}")
+
+            import sys
+            print(f"[热点GEO] 详细错误堆栈:", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            return AIAnalysisResult(success=False, error=f"{error_type}: {error_msg}")
 
     def _prepare_current_title_info(self, results: Dict, time_info: str) -> Dict:
         """从当前抓取结果构建标题信息"""
@@ -532,14 +716,35 @@ class NewsAnalyzer:
 
         # AI 分析（如果启用，用于 HTML 报告）
         ai_result = None
-        ai_config = self.ctx.config.get("AI_ANALYSIS", {})
-        if ai_config.get("ENABLED", False) and stats:
-            # 获取模式策略来确定报告类型
-            mode_strategy = self._get_mode_strategy()
-            report_type = mode_strategy["report_type"]
-            ai_result = self._run_ai_analysis(
-                stats, rss_items, mode, report_type, id_to_name
+        analysis_config = self.ctx.config.get("AI_ANALYSIS", {})
+        if analysis_config.get("ENABLED", False):
+            # 检查是否为热点模式
+            is_hotspot_mode = (
+                analysis_config.get("mode") == "geo" and
+                analysis_config.get("hotspot_mode", False)
             )
+
+            if is_hotspot_mode:
+                # 热点模式：不依赖关键词，直接分析热榜
+                ai_result = self._run_hotspot_geo_analysis(
+                    results=data_source,
+                    id_to_name=id_to_name,
+                    title_info=title_info,
+                    quiet=quiet,
+                )
+            elif stats:
+                # 关键词模式：分析匹配关键词的新闻
+                # 获取模式策略来确定报告类型
+                mode_strategy = self._get_mode_strategy()
+                report_type = mode_strategy["report_type"]
+                ai_result = self._run_ai_analysis(
+                    stats, rss_items, mode, report_type, id_to_name
+                )
+
+                # 保存生成的内容（如果启用 GEO 模式且有内容）
+                if ai_result and ai_result.success and ai_result.analysis_mode == "geo":
+                    date_folder = self.ctx.format_date()
+                    self._save_generated_content(ai_result, date_folder)
 
         # HTML生成（如果启用）
         html_file = None

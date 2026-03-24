@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile trendradar/__main__.py trendradar/ai/analyzer.py trendradar/content/manager.py)",
+      "Bash(python -m py_compile trendradar/__main__.py trendradar/ai/analyzer.py)",
+      "Bash(git add .claude/skills/trendradar-patterns.md)",
+      "Bash(git add docs/TrendRadar-Geoskill.md)"
+    ]
+  }
+}
