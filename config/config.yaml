@@ -389,13 +389,33 @@ ai:
 ai_analysis:
   enabled: true                     # 是否启用 AI 分析
 
+  # 分析模式
+  # - generic: 通用热点趋势分析
+  # - geo: GEO 借势营销分析（将热点转化为商业机会，默认）
+  mode: "geo"
+
+  # GEO 热点模式（仅在 mode: "geo" 时生效）
+  # 当启用时，不使用关键词过滤，直接取热榜排名前 N 条的新闻进行分析
+  # 这样可以捕捉更多潜在的热点话题，而不仅限于预设关键词
+  hotspot_mode: false                # 是否启用热点模式（不依赖关键词）
+
+  # 热点模式配置（仅在 hotspot_mode: true 时生效）
+  hotspot_max_count: 30              # 热点新闻最大数量
+
+  # GEO 模式关注领域（可选，仅在 mode: "geo" 时生效）
+  # 留空则不限制领域，填写后 AI 会更关注该领域的营销机会
+  # 示例: "汽车行业"、"科技产品"、"电商零售"
+  geo_focus: ""
+
   # 分析报告输出语言
   # 格式：自然语言描述
   # 示例: "English", "Korean", "法语"
   language: "Chinese"
 
   # 提示词配置文件路径（相对于 config 目录）
-  prompt_file: "ai_analysis_prompt.txt"
+  # generic 模式推荐: ai_analysis_prompt.txt
+  # geo 模式推荐: ai_analysis_geo_prompt.txt
+  prompt_file: "ai_analysis_geo_prompt.txt"
 
   # 分析内容配置
   max_news_for_analysis: 50         # 参与分析的新闻数量上限（控制成本关键项）
