@@ -7,7 +7,8 @@
       "Bash(git add docs/TrendRadar-Geoskill.md)",
       "Bash(git pull)",
       "Bash(ls \"E:\\\\Thenewgeo\\\\TheNEWs\"run.*)",
-      "Bash(ls -la run.*)"
+      "Bash(ls -la run.*)",
+      "Bash(git add .claude/skills/thenews-geo.md scripts/ run.sh run.bat)"
     ]
   }
 }
